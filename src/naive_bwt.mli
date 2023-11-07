@@ -1,2 +1,9 @@
-val get_suffixes: string -> (int * string * char) list
-val build_bwt: string -> string
+module Text : sig
+  (* type t *)
+  type text
+  val setText: string -> text
+  val compare: text -> int -> int -> int
+  val getSA: text -> int list 
+  val getSuffix: text -> int -> string
+  val getBWT: text -> string 
+end
