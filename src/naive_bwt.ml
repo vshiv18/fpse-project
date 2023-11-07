@@ -3,7 +3,7 @@ open Core
 module Text = struct
   (* type t = int [@@deriving sexp] *)
   type text = string
-  let setText (intext : string) : text = intext
+  let buildText (intext : string) : text = intext
   let compare (t : text) (a : int) (b : int) : int =
     let len = String.length t in
     let endidx = if a > b then a else b in 
