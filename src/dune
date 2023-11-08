@@ -1,6 +1,6 @@
 (library
-  (name naive_bwt)
-  (modules naive_bwt)
+  (name BigBWT)
+  (modules naive_bwt pfp)
   (libraries 
     core)
   (preprocess

@@ -1,7 +1,5 @@
 open Core
-
 module Text = struct
-  (* type t = int [@@deriving sexp] *)
   type text = string
   let buildText (intext : string) : text = intext
   let compare (t : text) (a : int) (b : int) : int =
@@ -18,8 +16,9 @@ module Text = struct
   let getSuffix (t : text) (idx : int) : string = String.drop_prefix t idx
   let getBWT (t : text) : string = 
     (String.length t) :: (getSA t)
-    (* |> List.map ~f:(fun idx -> if idx = 0 then t.[(String.length t) - 1] else t.[idx - 1]) *)
     |> List.map ~f:(fun idx -> if idx = 0 then '$' else t.[idx - 1])
     |> String.of_char_list 
   end
+
+
   
