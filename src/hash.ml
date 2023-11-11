@@ -43,6 +43,5 @@ module MakeRollHash (P : Params) : S = struct
   let next_hash (str : string) (last : int)  =
     mul last P.b |> add (Char.to_int (String.get str (String.length str - 1)))
   
-    let is_trigger_string (str : string) = Int.(=) 0 @@ hash str
+  let is_trigger_string (str : string) = Int.(=) 0 @@ hash str
 end 
-
