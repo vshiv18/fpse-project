@@ -26,16 +26,16 @@ module MakeRollHash (P : Params) : S = struct
   let mul n m =
     (n * m) mod P.p
 
-  let rec xgcd a b =
+  (* let rec xgcd a b =
     if a = 0 then (0, 1, b)
     else
       let (x1, y1, d) = xgcd (b mod a) a in
       let x = y1 - (b/a) * x1 in
       let y = x1 in
-      (x, y, d)
+      (x, y, d) *)
 
-  let b_inv =
-    let x, _, _ = xgcd P.b P.p in add x P.p
+  (* let b_inv =
+    let x, _, _ = xgcd P.b P.p in add x P.p *)
 
   let hash (str : string) = str |> String.foldi ~init:0 ~f:(fun i acc ele -> 
     (add acc (mul (Char.to_int ele) (int_pow P.b (String.length str - i - 1)))))

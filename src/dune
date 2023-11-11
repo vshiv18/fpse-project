@@ -7,7 +7,7 @@
   (pps ppx_jane)))
 
 (library
-  (name hash)
+  (name RollHash)
   (modules hash)
   (libraries 
     core)
