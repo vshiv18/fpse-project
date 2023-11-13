@@ -10,9 +10,7 @@ module type PFP_S =
 end
 
 let repeat c k = String.of_char_list (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc))
-
-
-module PFP (Hash :sig val is_trigger: int -> string -> bool end) : PFP_S =
+module PFP (Hash :sig val is_trigger: string -> bool end) : PFP_S =
 struct
   type text = string
   module Dict = Map.Make(String)
@@ -26,7 +24,7 @@ struct
     let rec helper (text : text) (dict : dict_counter) (parse : int list) (parsemap : parse_mapper) (current_phrase : string list) : (dict_counter * (int list) * parse_mapper) =
       if (String.length text) = 0 then (dict, parse, parsemap) else
       let cur_trigger = String.prefix text w in
-      match Hash.is_trigger 0 cur_trigger with 
+      match Hash.is_trigger cur_trigger with 
       | false -> helper (String.drop_prefix text 1) dict parse parsemap ((String.prefix text 1) :: current_phrase)
       | true -> 
         let final_phrase = String.rev (String.concat [String.rev cur_trigger; String.concat current_phrase]) in

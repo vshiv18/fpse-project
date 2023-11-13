@@ -5,3 +5,11 @@
     core)
   (preprocess
   (pps ppx_jane)))
+
+(library
+  (name RollHash)
+  (modules hash)
+  (libraries 
+    core)
+  (preprocess
+  (pps ppx_jane)))
