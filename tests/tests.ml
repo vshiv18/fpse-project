@@ -12,10 +12,12 @@ end
 
 module Parser = PFP(TestHash)
 let paper_T = "GATTACAT!GATACAT!GATTAGATA"
-let paper_D = ["T!GATTAG";"T!GATAC";"AGATA$$";"ACAT!";"$GATTAC"]
+let paper_D = [("$GATTAC", 1); ("ACAT!", 2); ("AGATA$$", 1); ("T!GATAC", 1); ("T!GATTAG", 1)]
 let paper_parse = [0; 1; 3; 1; 4; 2]
+let dict, parse = let d, p = (Parser.parse paper_T 2) in 
+  (Parser.dict_to_alist d), p
 let test_window _ = 
-  assert_equal (Parser.parse paper_T 2) ((Parser.buildDict paper_D), paper_parse)
+  assert_equal (dict, parse) (paper_D, paper_parse)
 let tests = "tests" >::: [
   "paper test"    >:: test_window;
 ]
