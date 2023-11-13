@@ -9,5 +9,5 @@ module type PFP_S =
   val dict_to_alist: dict -> (string * int) list
   end
 
-module PFP (_ :sig val is_trigger: int -> string -> bool end) : PFP_S
+module PFP (_ :sig val is_trigger: string -> bool end) : PFP_S
 

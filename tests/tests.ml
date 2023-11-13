@@ -7,7 +7,7 @@ open OUnit2;;
 open BigBWT.Pfp;;
 
 module TestHash = struct
-  let is_trigger _ s = List.mem ["AC"; "AG"; "T!"; "$$"] s ~equal:String.(=) 
+  let is_trigger s = List.mem ["AC"; "AG"; "T!"; "$$"] s ~equal:String.(=) 
 end
 
 module Parser = PFP(TestHash)
