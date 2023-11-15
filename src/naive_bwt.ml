@@ -1,28 +1,76 @@
 open Core
 
-module Text = struct
-  type text = string
+module type Sequence = sig
+  module Item : sig
+    type t [@@deriving compare]
+  end
 
-  let buildText (intext : string) : text = intext
+  type t
+
+  val null : Item.t
+  val get : t -> int -> Item.t
+  val length : t -> int
+  val of_list : Item.t list -> t
+  val of_seq : t -> t
+end
+
+module StringSequence : Sequence = struct
+  module Item = struct
+    type t = char
+
+    let compare = Char.compare
+  end
+
+  type t = string
+
+  let null = '$'
+  let get s idx = s.[idx]
+  let length = String.length
+  let of_list = String.of_char_list
+  let of_seq (s : string) : t = s
+end
+
+module IntSequence : Sequence = struct
+  module Item = Int
+
+  type t = Item.t Array.t
+
+  let null = -1
+
+  (* let compare_suffixes idx1 idx2 *)
+  let get (a : t) (n : int) = Array.get a n
+  let length = Array.length
+  let of_list = Array.of_list
+  let of_seq (s : int array) : t = s
+end
+
+module Text (Sequence : Sequence) = struct
+  type text = Sequence.t
+
+  let buildText (intext : Sequence.t) : text = intext
 
   let compare (t : text) (a : int) (b : int) : int =
-    let len = String.length t in
+    let len = Sequence.length t in
     let endidx = if a > b then a else b in
     List.fold_until
       (List.range 0 (len - endidx))
       ~init:0
       ~f:(fun _ offset ->
-        let comp = Char.compare t.[a + offset] t.[b + offset] in
+        let comp =
+          Sequence.Item.compare
+            (Sequence.get t (a + offset))
+            (Sequence.get t (b + offset))
+        in
         if comp = 0 then Continue 0 else Stop comp)
       ~finish:(fun _ -> if a > b then -1 else 1)
 
   let getSA (t : text) =
-    List.range 0 (String.length t) |> List.sort ~compare:(compare t)
+    List.range 0 (Sequence.length t) |> List.sort ~compare:(compare t)
 
-  let getSuffix (t : text) (idx : int) : string = String.drop_prefix t idx
+  (* let getSuffix (t : text) (idx : int) : text = String.drop_prefix t idx *)
 
-  let getBWT (t : text) : string =
-    String.length t :: getSA t
-    |> List.map ~f:(fun idx -> if idx = 0 then '$' else t.[idx - 1])
-    |> String.of_char_list
+  let getBWT (t : text) : Sequence.t =
+    Sequence.length t :: getSA t
+    |> List.map ~f:(fun idx -> if idx = 0 then Sequence.null else Sequence.get t (idx - 1))
+    |> Sequence.of_list
 end
