@@ -19,10 +19,12 @@ module Text (Sequence : Sequence) : sig
   (* type t *)
   type text = Sequence.t
 
-  val buildText : Sequence.t -> text
+  val buildText : text -> text
   val compare : text -> int -> int -> int
   val getSA : text -> int list
 
   (* val getSuffix : text -> int -> text *)
-  val getBWT : text -> Sequence.t
+  val getBWT : text -> text
+
+  val rle_BWT : text -> (Sequence.Item.t * int) list
 end

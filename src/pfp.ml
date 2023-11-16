@@ -7,6 +7,7 @@ module type PFP_S = sig
   val parse : text -> int -> dict * int list
   val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
+  val parse_to_BWT : dict * int list -> string
 end
 
 let repeat c k =
@@ -89,4 +90,7 @@ end) : PFP_S = struct
 
   let dict_to_alist (dict : dict) : (string * int) list =
     Map.to_alist ~key_order:`Increasing dict
+
+  (* TODO: *)
+  let parse_to_BWT parse = let _ = parse in ""
 end

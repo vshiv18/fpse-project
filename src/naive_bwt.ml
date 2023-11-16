@@ -79,4 +79,7 @@ module Text (Sequence : Sequence) = struct
     |> List.map ~f:(fun idx ->
            if idx = 0 then Sequence.null else Sequence.get text (idx - 1))
     |> Sequence.of_list
+
+  (* TODO: *)
+  let rle_BWT string = let _ = string in []
 end
