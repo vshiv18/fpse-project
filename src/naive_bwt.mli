@@ -11,8 +11,9 @@ module type Sequence = sig
   val of_list : Item.t list -> t
   val of_seq : t -> t
 end
-module StringSequence : Sequence
-module IntSequence : Sequence
+
+module CharSequence : Sequence with type t = string
+module IntSequence : Sequence with type t = Int.t Array.t
 
 module Text (Sequence : Sequence) : sig
   (* type t *)
@@ -21,6 +22,7 @@ module Text (Sequence : Sequence) : sig
   val buildText : Sequence.t -> text
   val compare : text -> int -> int -> int
   val getSA : text -> int list
+
   (* val getSuffix : text -> int -> text *)
   val getBWT : text -> Sequence.t
 end
