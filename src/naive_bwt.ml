@@ -14,7 +14,7 @@ module type Sequence = sig
   val of_seq : t -> t
 end
 
-module StringSequence : Sequence = struct
+module CharSequence : Sequence with type t = string = struct
   module Item = struct
     type t = char
 
@@ -30,10 +30,14 @@ module StringSequence : Sequence = struct
   let of_seq (s : string) : t = s
 end
 
-module IntSequence : Sequence = struct
-  module Item = Int
+module IntSequence : Sequence with type t = Int.t Array.t = struct
+  module Item = struct
+    type t = int
 
-  type t = Item.t Array.t
+    let compare = Int.compare
+  end
+
+  type t = Int.t Array.t
 
   let null = -1
 
@@ -69,8 +73,10 @@ module Text (Sequence : Sequence) = struct
 
   (* let getSuffix (t : text) (idx : int) : text = String.drop_prefix t idx *)
 
-  let getBWT (t : text) : Sequence.t =
-    Sequence.length t :: getSA t
-    |> List.map ~f:(fun idx -> if idx = 0 then Sequence.null else Sequence.get t (idx - 1))
+  let getBWT (seq : Sequence.t) : text =
+    let text = Sequence.of_seq seq in
+    Sequence.length text :: getSA text
+    |> List.map ~f:(fun idx ->
+           if idx = 0 then Sequence.null else Sequence.get text (idx - 1))
     |> Sequence.of_list
 end
