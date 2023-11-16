@@ -73,7 +73,7 @@ module Text (Sequence : Sequence) = struct
 
   (* let getSuffix (t : text) (idx : int) : text = String.drop_prefix t idx *)
 
-  let getBWT (seq : Sequence.t) : text =
+  let getBWT (seq : text) : text =
     let text = Sequence.of_seq seq in
     Sequence.length text :: getSA text
     |> List.map ~f:(fun idx ->
