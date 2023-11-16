@@ -81,5 +81,7 @@ module Text (Sequence : Sequence) = struct
     |> Sequence.of_list
 
   (* TODO: *)
-  let rle_BWT string = let _ = string in []
+  let rle_BWT string =
+    let _ = string in
+    []
 end

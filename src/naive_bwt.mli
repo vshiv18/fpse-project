@@ -25,6 +25,5 @@ module Text (Sequence : Sequence) : sig
 
   (* val getSuffix : text -> int -> text *)
   val getBWT : text -> text
-
   val rle_BWT : text -> (Sequence.Item.t * int) list
 end

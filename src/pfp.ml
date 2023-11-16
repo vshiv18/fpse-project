@@ -92,5 +92,7 @@ end) : PFP_S = struct
     Map.to_alist ~key_order:`Increasing dict
 
   (* TODO: *)
-  let parse_to_BWT parse = let _ = parse in ""
+  let parse_to_BWT parse =
+    let _ = parse in
+    ""
 end

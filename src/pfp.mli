@@ -8,7 +8,6 @@ module type PFP_S = sig
   val parse : text -> int -> dict * int list
   val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
-
   val parse_to_BWT : dict * int list -> string
 end
 
