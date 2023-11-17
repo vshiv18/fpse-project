@@ -12,9 +12,11 @@ module type Sequence = sig
   val length : t -> int
   val of_list : Item.t list -> t
   val of_seq : t -> t
+  val fold : t -> init:'acc -> f:('acc -> Item.t -> 'acc) -> 'acc
 end
 
-module CharSequence : Sequence with type t = string = struct
+module CharSequence : Sequence with type t = string and type Item.t = char =
+struct
   module Item = struct
     type t = char
 
@@ -28,9 +30,11 @@ module CharSequence : Sequence with type t = string = struct
   let length = String.length
   let of_list = String.of_char_list
   let of_seq (s : string) : t = s
+  let fold = String.fold
 end
 
-module IntSequence : Sequence with type t = Int.t Array.t = struct
+module IntSequence :
+  Sequence with type t = Int.t Array.t and type Item.t = int = struct
   module Item = struct
     type t = int
 
@@ -46,6 +50,7 @@ module IntSequence : Sequence with type t = Int.t Array.t = struct
   let length = Array.length
   let of_list = Array.of_list
   let of_seq (s : int array) : t = s
+  let fold = Array.fold
 end
 
 module Text (Sequence : Sequence) = struct
@@ -80,8 +85,13 @@ module Text (Sequence : Sequence) = struct
            if idx = 0 then Sequence.null else Sequence.get text (idx - 1))
     |> Sequence.of_list
 
-  (* TODO: *)
   let rle_BWT string =
-    let _ = string in
-    []
+    Sequence.fold string ~init:[] ~f:(fun acc ele ->
+        match acc with
+        | [] -> [ (ele, 1) ]
+        | (prev, count) :: tl when Int.( = ) 0 @@ Sequence.Item.compare prev ele
+          ->
+            (prev, count + 1) :: tl
+        | _ -> (ele, 1) :: acc)
+    |> List.rev
 end

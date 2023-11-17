@@ -14,10 +14,11 @@ module type Sequence = sig
   val length : t -> int
   val of_list : Item.t list -> t
   val of_seq : t -> t
+  val fold : t -> init:'acc -> f:('acc -> Item.t -> 'acc) -> 'acc
 end
 
-module CharSequence : Sequence with type t = string
-module IntSequence : Sequence with type t = Int.t Array.t
+module CharSequence : Sequence with type t = string and type Item.t = char
+module IntSequence : Sequence with type t = Int.t Array.t and type Item.t = int
 
 (** Text is built over a sequence, and is used to perform algorithms over it **)
 module Text (Sequence : Sequence) : sig
