@@ -1,9 +1,4 @@
-; Fill in this file.
-;
-(test
-  (name tests)
-  (libraries
-    core
-    ounit2
-    BigBWT
-  ))
+(tests
+ (names tests fasta)
+ (libraries core ounit2 BigBWT biocaml.unix)
+ (preprocess (pps ppx_jane)))
