@@ -16,7 +16,8 @@ module type PFP_S = sig
   (** Sanity check to analyse dictionary contents **)
   val dict_to_alist : dict -> (string * int) list
   (** Given the dictionary and parse of the BWT, use it to compute the BWT of the original text **)
-  val parse_to_BWT : dict * int list -> string
+  val parse_to_BWT : dict * int list -> int -> string
+  val getBWT : text -> int -> string
 end
 
 (** Requires a hash module which defines trigger strings which break keywords **)
