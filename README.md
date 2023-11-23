@@ -53,7 +53,7 @@ Found `GAT` at positions 0, 9, 18, 23
 
 - [x] Implement a naive BWT algorithm.
 - [x] Implement a PFP algorithm with underlying hashing library.
-- [ ] Implement an efficient BWT algorithm using PFP.
+- [x] Implement an efficient BWT algorithm using PFP.
 - [ ] Implement FM-index.
 - [ ] Implement r-index.
 - [ ] Implement serialization functions for both indices.
