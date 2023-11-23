@@ -125,7 +125,15 @@ end) : PFP_S = struct
       |> List.foldi ~init:InvList.empty ~f:(fun i acc p ->
              Map.add_multi acc ~key:(Map.find_exn rank_to_phrase p) ~data:i)
     in
-    
+    let w_array =
+      parse |> IntSequence.of_list |> IntBWT.getSA
+      |> List.map ~f:(fun i ->
+             let cur_phrase =
+               List.nth_exn phrases (wrap_nth_exn parse (i - 2))
+             in
+             String.get cur_phrase (String.length cur_phrase - w - 1))
+      |> String.of_char_list
+    in
     (* add suffixes s which are proper suffixes of a phrase d in D *)
     let beta =
       List.foldi (Map.to_alist dic) ~init:ParseMapper.empty ~f:(fun i acc (phrase, freq) ->
