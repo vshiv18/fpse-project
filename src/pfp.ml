@@ -19,7 +19,7 @@ let repeat_list c k =
     (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc))
 
 module PFP (Hash : sig
-  val is_trigger : string -> bool
+  val is_trigger_string : string -> bool
 end) : PFP_S = struct
   type text = string
 
@@ -45,7 +45,7 @@ end) : PFP_S = struct
       if String.length text = 0 then (dict, parse, parsemap)
       else
         let cur_trigger = String.prefix text w in
-        match (String.(=) cur_trigger (repeat '$' w)) || (Hash.is_trigger cur_trigger) with
+        match (String.(=) cur_trigger (repeat '$' w)) || (Hash.is_trigger_string cur_trigger) with
         | false ->
             helper
               (String.drop_prefix text 1)

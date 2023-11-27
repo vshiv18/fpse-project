@@ -85,6 +85,13 @@ module Text (Sequence : Sequence) = struct
            if idx = 0 then Sequence.null else Sequence.get text (idx - 1))
     |> Sequence.of_list
 
+  (* let bwt_from_SA (seq : text) (sa : int list) =
+    let text = Sequence.of_seq seq in
+    List.length sa :: sa
+    |> List.map ~f:(fun idx ->
+           if idx = 0 then Sequence.null else Sequence.get text (idx - 1))
+    |> Sequence.of_list *)
+
   let rle_BWT string =
     Sequence.fold string ~init:[] ~f:(fun acc ele ->
         match acc with

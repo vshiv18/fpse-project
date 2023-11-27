@@ -19,3 +19,16 @@
  (libraries core RollHash)
  (preprocess
   (pps ppx_jane)))
+
+(executable
+  (name buildBWT)
+  (modules
+    buildBWT)
+  (libraries
+    core
+    core_unix.sys_unix
+    stdio
+    BigBWT
+    RollHash)
+  (preprocess
+    (pps ppx_jane)))

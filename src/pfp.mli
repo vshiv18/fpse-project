@@ -22,5 +22,5 @@ end
 
 (** Requires a hash module which defines trigger strings which break keywords **)
 module PFP (_ : sig
-  val is_trigger : string -> bool
+  val is_trigger_string : string -> bool
 end) : PFP_S
