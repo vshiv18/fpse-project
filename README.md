@@ -1,7 +1,7 @@
 # OCaml-BigBWT
 
 (601.429/629) class project
-by Nate Brown, Vikram Shivakumar, Jacopo Teneggi sucks
+by Nate Brown, Vikram Shivakumar, Jacopo Teneggi
 
 ---
 
