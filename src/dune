@@ -24,6 +24,7 @@
     core
     core_unix.sys_unix
     stdio
-    BigBWT)
+    BigBWT
+    RollHash)
   (preprocess
     (pps ppx_jane)))
