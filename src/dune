@@ -1,19 +1,23 @@
 (library
-  (name RollHash)
-  (modules hash)
-  (libraries 
-    core)
-  (preprocess
+ (name RollHash)
+ (modules hash)
+ (libraries core)
+ (preprocess
   (pps ppx_jane)))
 
 (library
-  (name BigBWT)
-  (modules naive_bwt pfp fm_index)
-  (modules_without_implementation fm_index)
-  (libraries 
-    core
-    RollHash)
-  (preprocess
+ (name fasta)
+ (modules fasta)
+ (libraries core)
+ (preprocess
+  (pps ppx_jane)))
+
+(library
+ (name BigBWT)
+ (modules naive_bwt pfp fm_index)
+ (modules_without_implementation fm_index)
+ (libraries core RollHash)
+ (preprocess
   (pps ppx_jane)))
 
 (executable
