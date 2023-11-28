@@ -15,8 +15,9 @@ end
 let repeat c k =
   String.of_char_list
     (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc))
+
 let repeat_list c k =
-    (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc))
+  List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc)
 
 module PFP (Hash : sig
   val is_trigger_string : string -> bool
@@ -34,7 +35,6 @@ end) : PFP_S = struct
 
   module ParseSorter = Map.Make (Int)
   module InvList = Map.Make (String)
-
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
@@ -45,7 +45,10 @@ end) : PFP_S = struct
       if String.length text = 0 then (dict, parse, parsemap)
       else
         let cur_trigger = String.prefix text w in
-        match (String.(=) cur_trigger (repeat '$' w)) || (Hash.is_trigger_string cur_trigger) with
+        match
+          String.( = ) cur_trigger (repeat '$' w)
+          || Hash.is_trigger_string cur_trigger
+        with
         | false ->
             helper
               (String.drop_prefix text 1)
@@ -68,7 +71,7 @@ end) : PFP_S = struct
               new_dict
               (Map.find_exn new_parsemapper final_phrase :: parse)
               new_parsemapper
-              [String.prefix text 1]
+              [ String.prefix text 1 ]
     in
     let dict, parse, parsemap =
       helper
@@ -77,8 +80,7 @@ end) : PFP_S = struct
     in
     let dict = Map.map dict ~f:(fun count -> List.length count) in
     let parse = List.rev parse in
-    let reorder_parse (dict : dict) (parse : int list) (parsemap : parse_mapper)
-        =
+    let reorder_parse (parse : int list) (parsemap : parse_mapper) =
       let sorted_parsemap =
         Map.to_alist ~key_order:`Increasing parsemap
         |> List.mapi ~f:(fun idx (_, placeholder) -> (placeholder, idx))
@@ -89,9 +91,9 @@ end) : PFP_S = struct
           ~f:(fun placeholder -> Map.find_exn sorted_parsemap placeholder)
           parse
       in
-      (dict, parse)
+      parse
     in
-    reorder_parse dict parse parsemap
+    (dict, reorder_parse parse parsemap)
   (* for testing *)
 
   let buildText (text : string) : text = text
@@ -99,7 +101,9 @@ end) : PFP_S = struct
   let dict_to_alist (dict : dict) : (string * int) list =
     Map.to_alist ~key_order:`Increasing dict
 
-  let wrap_nth_exn list i = List.nth_exn list (i % List.length list)
+  (* let wrap_nth_exn list i = List.nth_exn list (i % List.length list) *)
+  let wrap_get list i = IntSequence.get list (i % IntSequence.length list)
+
   (* let wrap_get string i = String.get string (i % String.length string) *)
 
   let is_homogenous l =
@@ -108,35 +112,38 @@ end) : PFP_S = struct
     with
     | Some _ -> true
     | None -> false
-  
+
   (* TODO: *)
-  let parse_to_BWT (parse : dict * int list) (w : int) : text=
+  let parse_to_BWT (parse : dict * int list) (w : int) : text =
     let dic, parse = parse in
+    let parse = parse |> IntSequence.of_list in
     let phrases = Map.keys dic in
     let rank_to_phrase =
       List.mapi phrases ~f:(fun i p -> (i, p)) |> Map.of_alist_exn (module Int)
     in
-    let parseBWT =
-      parse |> IntSequence.of_list |> IntBWT.getBWT |> List.of_array
-    in
+    let parseSA = parse |> IntBWT.getSA in
     let inv_list =
-      parseBWT
-      |> List.filter ~f:(fun x -> x <> -1)
+      List.length parseSA :: parseSA
       |> List.foldi ~init:InvList.empty ~f:(fun i acc p ->
-             Map.add_multi acc ~key:(Map.find_exn rank_to_phrase p) ~data:i)
+             match p with
+             | 0 -> acc
+             | idx ->
+                 let p = IntSequence.get parse (idx - 1) in
+                 Map.add_multi acc ~key:(Map.find_exn rank_to_phrase p) ~data:i)
     in
     let w_array =
-      parse |> IntSequence.of_list |> IntBWT.getSA
+      parseSA
       |> List.map ~f:(fun i ->
              let cur_phrase =
-               List.nth_exn phrases (wrap_nth_exn parse (i - 2))
+               List.nth_exn phrases (wrap_get parse (i - 2))
              in
              String.get cur_phrase (String.length cur_phrase - w - 1))
       |> String.of_char_list
     in
     (* add suffixes s which are proper suffixes of a phrase d in D *)
     let beta =
-      List.foldi (Map.to_alist dic) ~init:ParseMapper.empty ~f:(fun i acc (phrase, freq) ->
+      List.foldi (Map.to_alist dic) ~init:ParseMapper.empty
+        ~f:(fun i acc (phrase, freq) ->
           let len = String.length phrase in
           List.fold
             (List.range w (len - 1))
@@ -148,31 +155,46 @@ end) : PFP_S = struct
     in
     (* add suffixes s which are in D *)
     (* let beta =
-      List.foldi phrases ~init:beta ~f:(fun i acc phrase ->
-          let occs = Map.find_exn inv_list phrase in
-          List.fold occs ~init:acc ~f:(fun countmap p ->
-              Map.add_multi countmap ~key:phrase ~data:(String.get w_array p, i, 1))) *)
+       List.foldi phrases ~init:beta ~f:(fun i acc phrase ->
+           let occs = Map.find_exn inv_list phrase in
+           List.fold occs ~init:acc ~f:(fun countmap p ->
+               Map.add_multi countmap ~key:phrase ~data:(String.get w_array p, i, 1))) *)
     let beta =
-      List.fold phrases ~init:beta ~f:(fun acc phrase -> Map.add_exn acc ~key:phrase ~data:[(' ', -1, 0)])
-    in 
-    (* beta contains a map of s (phrase suffix) -> list of (prev character, original phrase rank, frequency) 
+      List.fold phrases ~init:beta ~f:(fun acc phrase ->
+          Map.add_exn acc ~key:phrase ~data:[ (' ', -1, 0) ])
+    in
+    (* beta contains a map of s (phrase suffix) -> list of (prev character, original phrase rank, frequency)
        If s is a phrase, then it stores a dummy (' ', -1, 0), which is used as an indicator that chars should be pulled from W *)
     List.fold (Map.to_alist beta) ~init:[] ~f:(fun bwt (phrase, prevs) ->
-        if ((List.length prevs) = 1) && (let _, i, _ = (List.hd_exn prevs) in i = -1) then  (*case where s is a member of D*)
-          let occs = List.sort (Map.find_exn inv_list phrase) ~compare:Int.compare in
-          List.fold occs ~init:bwt ~f:(fun seq p -> (String.get w_array p) :: seq)
-        
-        else if is_homogenous prevs then                                             (* case of no ambiguous preceding chars*)
+        if
+          List.length prevs = 1
+          &&
+          let _, i, _ = List.hd_exn prevs in
+          i = -1
+        then
+          (*case where s is a member of D*)
+          let occs =
+            List.sort (Map.find_exn inv_list phrase) ~compare:Int.compare
+          in
+          List.fold occs ~init:bwt ~f:(fun seq p -> String.get w_array p :: seq)
+        else if is_homogenous prevs then
+          (* case of no ambiguous preceding chars*)
           List.fold prevs ~init:bwt ~f:(fun curbwt (c, _, freq) ->
-            List.concat [repeat_list c freq; curbwt])
-        
-        else                                                                     (* Case where s appears as proper suffix of multiple phrases, which different preceding chars*)
-          let order = List.map prevs ~f:(fun (c, d, _) ->
-            List.map (Map.find_exn inv_list (List.nth_exn phrases d)) ~f:(fun p -> (c, p))
-            ) |> List.concat |> List.sort ~compare:(fun (_, p1) (_, p2) -> p1 - p2) in
-          List.fold order ~init:bwt ~f:(fun seq (c, _) -> c :: seq)
-        )
+              List.concat [ repeat_list c freq; curbwt ])
+        else
+          (* Case where s appears as proper suffix of multiple phrases, which different preceding chars*)
+          let order =
+            List.map prevs ~f:(fun (c, d, _) ->
+                List.map
+                  (Map.find_exn inv_list (List.nth_exn phrases d))
+                  ~f:(fun p -> (c, p)))
+            |> List.concat
+            |> List.sort ~compare:(fun (_, p1) (_, p2) -> p1 - p2)
+          in
+          List.fold order ~init:bwt ~f:(fun seq (c, _) -> c :: seq))
     |> String.of_char_list |> String.rev
-  
-  let getBWT input_string w = let p = parse input_string w in parse_to_BWT p w
+
+  let getBWT input_string w =
+    let p = parse input_string w in
+    parse_to_BWT p w
 end
