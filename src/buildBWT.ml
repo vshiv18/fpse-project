@@ -33,6 +33,8 @@ let () =
     In_channel.with_file target_file ~f:(fun channel ->
         In_channel.input_all channel)
   in
+  let () = printf "Read input sequence\n%!" in
   let bwt = Parser.getBWT seq w in
+  let () = printf "BWT computed: %s...\n%!" (String.slice bwt 0 100) in
   let outfile = newfilename target_file in
   Out_channel.write_all outfile ~data:bwt

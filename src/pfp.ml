@@ -12,9 +12,14 @@ module type PFP_S = sig
   val getBWT : text -> int -> string
 end
 
-let repeat c k =
-  String.of_char_list
-    (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc))
+(* let repeat c k =
+   String.of_char_list
+     (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc)) *)
+let repeat c k = String.init k ~f:(fun _ -> c)
+
+let fill s c len =
+  String.concat
+    [ s; repeat c (if len > String.length s then len - String.length s else 0) ]
 
 let repeat_list c k =
   List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc)
@@ -38,27 +43,40 @@ end) : PFP_S = struct
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
+  (* rewrite to use indexes instead of passing in new text copies, esp no Stirng.drop_prefix *)
+  (* now the helper takes in
+     start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
   let parse (text : text) (w : int) : dict * int list =
-    let rec helper (text : text) (dict : dict_counter) (parse : int list)
-        (parsemap : parse_mapper) (current_phrase : string list) :
+    let terminator = repeat '$' w in
+    (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
+    let rec helper (pos : int) (dict : dict_counter) (parse : int list)
+        (parsemap : parse_mapper) ((phrase_start, phrase_end) : int * int) :
         dict_counter * int list * parse_mapper =
-      if String.length text = 0 then (dict, parse, parsemap)
+      let () =
+        if pos % (String.length text / 100) = 0 then
+          printf "%d/100 done\n%!" (pos / (String.length text / 100))
+      in
+      if pos > String.length text then (dict, parse, parsemap)
       else
-        let cur_trigger = String.prefix text w in
+        let cur_trigger =
+          if pos + w > String.length text then
+            fill (String.slice text pos 0) '$' w
+          else String.slice text pos (pos + w)
+        in
         match
-          String.( = ) cur_trigger (repeat '$' w)
+          String.( = ) cur_trigger terminator
           || Hash.is_trigger_string cur_trigger
         with
         | false ->
-            helper
-              (String.drop_prefix text 1)
-              dict parse parsemap
-              (String.prefix text 1 :: current_phrase)
+            helper (pos + 1) dict parse parsemap (phrase_start, phrase_end + 1)
         | true ->
             let final_phrase =
-              String.rev
-                (String.concat
-                   [ String.rev cur_trigger; String.concat current_phrase ])
+              let final_phrase =
+                if phrase_end + w > String.length text then
+                  String.slice text phrase_start 0 ^ terminator
+                else String.slice text phrase_start (phrase_end + w)
+              in
+              if phrase_start = 0 then "$" ^ final_phrase else final_phrase
             in
             let new_parsemapper =
               if Map.mem dict final_phrase then parsemap
@@ -66,17 +84,13 @@ end) : PFP_S = struct
                 Map.add_exn parsemap ~key:final_phrase ~data:(Map.length dict)
             in
             let new_dict = Map.add_multi dict ~key:final_phrase ~data:true in
-            helper
-              (String.drop_prefix text 1)
-              new_dict
+            helper (pos + 1) new_dict
               (Map.find_exn new_parsemapper final_phrase :: parse)
               new_parsemapper
-              [ String.prefix text 1 ]
+              (pos, pos + 1)
     in
     let dict, parse, parsemap =
-      helper
-        (String.concat [ "$"; text; repeat '$' w ])
-        Dict.empty [] ParseMapper.empty []
+      helper 0 Dict.empty [] ParseMapper.empty (0, 0)
     in
     let dict = Map.map dict ~f:(fun count -> List.length count) in
     let parse = List.rev parse in
@@ -134,9 +148,7 @@ end) : PFP_S = struct
     let w_array =
       parseSA
       |> List.map ~f:(fun i ->
-             let cur_phrase =
-               List.nth_exn phrases (wrap_get parse (i - 2))
-             in
+             let cur_phrase = List.nth_exn phrases (wrap_get parse (i - 2)) in
              String.get cur_phrase (String.length cur_phrase - w - 1))
       |> String.of_char_list
     in
