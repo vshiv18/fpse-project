@@ -1,15 +1,15 @@
 open Core
 
-module SAIS = struct
+module SAIS (Key_type : Base.Hashtbl.Key.S)= struct
   type t = int Array.t
 
-  let make_buckets (key_type : 'a Base.Hashtbl.Key.t) (text : 'a Array.t) :
+  let make_buckets (text : 'a Array.t) :
       t * ('a, int) Hashtbl.t * ('a, int) Hashtbl.t * ('a, int * int) Hashtbl.t
       =
     let array = Array.create ~len:(Array.length text + 1) (-1) in
     let tbl =
       text |> Array.to_list
-      |> Hashtbl.group key_type
+      |> Hashtbl.group (module Key_type)
            ~get_key:(fun x -> x)
            ~get_data:(fun _ -> 1)
            ~combine:(fun x y -> x + y)

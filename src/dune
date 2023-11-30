@@ -8,7 +8,7 @@
 
 (library
   (name BigBWT)
-  (modules naive_bwt pfp fm_index)
+  (modules naive_bwt pfp fm_index sais)
   (modules_without_implementation fm_index)
   (libraries 
     core
