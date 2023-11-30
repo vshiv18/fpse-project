@@ -29,15 +29,12 @@ module PFP (Hash : sig
 end) : PFP_S = struct
   type text = string
 
-  module Dict = Map.Make (String)
 
+  module Dict = Hashtbl.Make (String)
   type dict = int Dict.t
-  type dict_counter = bool list Dict.t
 
   module ParseMapper = Map.Make (String)
-
-  type parse_mapper = int ParseMapper.t
-
+   
   module ParseSorter = Map.Make (Int)
   module InvList = Map.Make (String)
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
@@ -48,15 +45,14 @@ end) : PFP_S = struct
      start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
   let parse (text : text) (w : int) : dict * int list =
     let terminator = repeat '$' w in
+    let dict_count = Hashtbl.create(module String) in
     (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
-    let rec helper (pos : int) (dict : dict_counter) (parse : int list)
-        (parsemap : parse_mapper) ((phrase_start, phrase_end) : int * int) :
-        dict_counter * int list * parse_mapper =
+    let rec helper (pos : int) (parse : int list) ((phrase_start, phrase_end) : int * int) : int list =
       let () =
         if pos % (String.length text / 100) = 0 then
           printf "%d/100 done\n%!" (pos / (String.length text / 100))
       in
-      if pos > String.length text then (dict, parse, parsemap)
+      if pos > String.length text then (parse)
       else
         let cur_trigger =
           if pos + w > String.length text then
@@ -68,7 +64,7 @@ end) : PFP_S = struct
           || Hash.is_trigger_string cur_trigger
         with
         | false ->
-            helper (pos + 1) dict parse parsemap (phrase_start, phrase_end + 1)
+            helper (pos + 1) parse (phrase_start, phrase_end + 1)
         | true ->
             let final_phrase =
               let final_phrase =
@@ -78,42 +74,35 @@ end) : PFP_S = struct
               in
               if phrase_start = 0 then "$" ^ final_phrase else final_phrase
             in
-            let new_parsemapper =
-              if Map.mem dict final_phrase then parsemap
-              else
-                Map.add_exn parsemap ~key:final_phrase ~data:(Map.length dict)
+            let () = Hashtbl.incr dict_count final_phrase
             in
-            let new_dict = Map.add_multi dict ~key:final_phrase ~data:true in
-            helper (pos + 1) new_dict
-              (Map.find_exn new_parsemapper final_phrase :: parse)
-              new_parsemapper
+            helper (pos + 1)
+              (Hashtbl.hash final_phrase :: parse)
               (pos, pos + 1)
     in
-    let dict, parse, parsemap =
-      helper 0 Dict.empty [] ParseMapper.empty (0, 0)
+    let parse = List.rev (helper 0 [] (0, 0))
     in
-    let dict = Map.map dict ~f:(fun count -> List.length count) in
-    let parse = List.rev parse in
-    let reorder_parse (parse : int list) (parsemap : parse_mapper) =
+    let reorder_parse (parse : int list) =
       let sorted_parsemap =
-        Map.to_alist ~key_order:`Increasing parsemap
-        |> List.mapi ~f:(fun idx (_, placeholder) -> (placeholder, idx))
-        |> ParseSorter.of_alist_exn
+        Hashtbl.keys dict_count
+        |> List.sort ~compare:String.compare
+        |> List.mapi ~f:(fun idx phrase -> (Hashtbl.hash phrase, idx))
+        |> Hashtbl.of_alist_exn(module Int)
       in
-      let parse =
         List.map
-          ~f:(fun placeholder -> Map.find_exn sorted_parsemap placeholder)
+          ~f:(fun placeholder -> Hashtbl.find_exn sorted_parsemap placeholder)
           parse
-      in
-      parse
     in
-    (dict, reorder_parse parse parsemap)
+    (dict_count, reorder_parse parse)
   (* for testing *)
 
   let buildText (text : string) : text = text
 
   let dict_to_alist (dict : dict) : (string * int) list =
-    Map.to_alist ~key_order:`Increasing dict
+    dict 
+    |> Hashtbl.to_alist 
+    |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)    
+
 
   (* let wrap_nth_exn list i = List.nth_exn list (i % List.length list) *)
   let wrap_get list i = IntSequence.get list (i % IntSequence.length list)
@@ -131,7 +120,7 @@ end) : PFP_S = struct
   let parse_to_BWT (parse : dict * int list) (w : int) : text =
     let dic, parse = parse in
     let parse = parse |> IntSequence.of_list in
-    let phrases = Map.keys dic in
+    let phrases = Hashtbl.keys dic in
     let rank_to_phrase =
       List.mapi phrases ~f:(fun i p -> (i, p)) |> Map.of_alist_exn (module Int)
     in
@@ -145,6 +134,7 @@ end) : PFP_S = struct
                  let p = IntSequence.get parse (idx - 1) in
                  Map.add_multi acc ~key:(Map.find_exn rank_to_phrase p) ~data:i)
     in
+    let () = printf "Inverted list (BWT(P)) computed\n%!" in
     let w_array =
       parseSA
       |> List.map ~f:(fun i ->
@@ -152,9 +142,10 @@ end) : PFP_S = struct
              String.get cur_phrase (String.length cur_phrase - w - 1))
       |> String.of_char_list
     in
+    let () = printf "W array computed\n%!" in
     (* add suffixes s which are proper suffixes of a phrase d in D *)
     let beta =
-      List.foldi (Map.to_alist dic) ~init:ParseMapper.empty
+      List.foldi (Hashtbl.to_alist dic) ~init:ParseMapper.empty
         ~f:(fun i acc (phrase, freq) ->
           let len = String.length phrase in
           List.fold
@@ -175,6 +166,7 @@ end) : PFP_S = struct
       List.fold phrases ~init:beta ~f:(fun acc phrase ->
           Map.add_exn acc ~key:phrase ~data:[ (' ', -1, 0) ])
     in
+    let () = printf "Beta mapping done\n%!" in
     (* beta contains a map of s (phrase suffix) -> list of (prev character, original phrase rank, frequency)
        If s is a phrase, then it stores a dummy (' ', -1, 0), which is used as an indicator that chars should be pulled from W *)
     List.fold (Map.to_alist beta) ~init:[] ~f:(fun bwt (phrase, prevs) ->
@@ -205,7 +197,6 @@ end) : PFP_S = struct
           in
           List.fold order ~init:bwt ~f:(fun seq (c, _) -> c :: seq))
     |> String.of_char_list |> String.rev
-
   let getBWT input_string w =
     let p = parse input_string w in
     parse_to_BWT p w

@@ -23,7 +23,7 @@ let newfilename fname =
   | prefix, None -> prefix ^ "_bwt.fa"
 
 let () =
-  let w = 31 in
+  let w = 10 in
   let target_file =
     match Sys.get_argv () |> Array.to_list with
     | _ :: file :: _ -> file
@@ -34,7 +34,9 @@ let () =
         In_channel.input_all channel)
   in
   let () = printf "Read input sequence\n%!" in
-  let bwt = Parser.getBWT seq w in
+  let dict, parse = Parser.parse seq w in
+  let () = printf "Generated parse\n%!" in
+  let bwt = Parser.parse_to_BWT (dict, parse) w in
   let () = printf "BWT computed: %s...\n%!" (String.slice bwt 0 100) in
   let outfile = newfilename target_file in
   Out_channel.write_all outfile ~data:bwt
