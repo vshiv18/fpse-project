@@ -160,22 +160,23 @@ end) : PFP_S = struct
            List.fold occs ~init:acc ~f:(fun countmap p ->
                Map.add_multi countmap ~key:phrase ~data:(String.get w_array p, i, 1))) *)
     let beta =
-      List.fold phrases ~init:beta ~f:(fun acc phrase ->
-          Map.add_exn acc ~key:phrase ~data:[ (' ', -1, 0) ])
+      List.foldi phrases ~init:beta ~f:(fun i acc phrase ->
+          Map.add_exn acc ~key:phrase ~data:[ (' ', i, -1) ])
     in
     let () = printf "Beta mapping done\n%!" in
     (* beta contains a map of s (phrase suffix) -> list of (prev character, original phrase rank, frequency)
        If s is a phrase, then it stores a dummy (' ', -1, 0), which is used as an indicator that chars should be pulled from W *)
-    List.fold (Map.to_alist beta) ~init:[] ~f:(fun bwt (phrase, prevs) ->
+    List.fold (Map.to_alist beta) ~init:[] ~f:(fun bwt (_, prevs) ->
         if
           List.length prevs = 1
           &&
-          let _, i, _ = List.hd_exn prevs in
+          let _, _, i = List.hd_exn prevs in
           i = -1
         then
           (*case where s is a member of D*)
           let occs =
-            List.sort (Hashtbl.find_exn inv_list phrase) ~compare:Int.compare
+            let _, _, phrase_rank = List.hd_exn prevs in
+            List.sort (Hashtbl.find_exn inv_list phrase_rank) ~compare:Int.compare
           in
           List.fold occs ~init:bwt ~f:(fun seq p -> String.get w_array p :: seq)
         else if is_homogenous prevs then
@@ -187,7 +188,7 @@ end) : PFP_S = struct
           let order =
             List.map prevs ~f:(fun (c, d, _) ->
                 List.map
-                  (Hashtbl.find_exn inv_list (List.nth_exn phrases d))
+                  (Hashtbl.find_exn inv_list d)
                   ~f:(fun p -> (c, p)))
             |> List.concat
             |> List.sort ~compare:(fun (_, p1) (_, p2) -> p1 - p2)
