@@ -4,11 +4,12 @@ open Naive_bwt
 module type PFP_S = sig
   type text = string
   type dict
+  type parse
 
-  val parse : text -> int -> dict * int list
+  val parse : text -> int -> parse
   val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
-  val parse_to_BWT : dict * int list -> int -> string
+  val parse_to_BWT : parse -> int -> string
   val getBWT : text -> int -> string
 end
 
@@ -29,30 +30,29 @@ module PFP (Hash : sig
 end) : PFP_S = struct
   type text = string
 
-
   module Dict = Hashtbl.Make (String)
+
   type dict = int Dict.t
+  type parse = string list * int list * int list
 
   module ParseMapper = Map.Make (String)
-   
-  module ParseSorter = Map.Make (Int)
-  module InvList = Map.Make (String)
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
   (* rewrite to use indexes instead of passing in new text copies, esp no Stirng.drop_prefix *)
   (* now the helper takes in
      start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
-  let parse (text : text) (w : int) : dict * int list =
+  let parse (text : text) (w : int) : parse =
     let terminator = repeat '$' w in
-    let dict_count = Hashtbl.create(module String) in
+    let dict_count = Hashtbl.create (module String) in
     (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
-    let rec helper (pos : int) (parse : int list) ((phrase_start, phrase_end) : int * int) : int list =
+    let rec helper (pos : int) (parse : int list)
+        ((phrase_start, phrase_end) : int * int) : int list =
       let () =
         if pos % (String.length text / 100) = 0 then
           printf "%d/100 done\n%!" (pos / (String.length text / 100))
       in
-      if pos > String.length text then (parse)
+      if pos > String.length text then parse
       else
         let cur_trigger =
           if pos + w > String.length text then
@@ -63,8 +63,7 @@ end) : PFP_S = struct
           String.( = ) cur_trigger terminator
           || Hash.is_trigger_string cur_trigger
         with
-        | false ->
-            helper (pos + 1) parse (phrase_start, phrase_end + 1)
+        | false -> helper (pos + 1) parse (phrase_start, phrase_end + 1)
         | true ->
             let final_phrase =
               let final_phrase =
@@ -74,35 +73,35 @@ end) : PFP_S = struct
               in
               if phrase_start = 0 then "$" ^ final_phrase else final_phrase
             in
-            let () = Hashtbl.incr dict_count final_phrase
-            in
-            helper (pos + 1)
-              (Hashtbl.hash final_phrase :: parse)
-              (pos, pos + 1)
+            let () = Hashtbl.incr dict_count final_phrase in
+            helper (pos + 1) (Hashtbl.hash final_phrase :: parse) (pos, pos + 1)
     in
-    let parse = List.rev (helper 0 [] (0, 0))
+    let parse = List.rev (helper 0 [] (0, 0)) in
+    let phrases =
+      dict_count |> Hashtbl.keys |> List.sort ~compare:String.compare
     in
-    let reorder_parse (parse : int list) =
+    let parse =
       let sorted_parsemap =
-        Hashtbl.keys dict_count
-        |> List.sort ~compare:String.compare
+        phrases
         |> List.mapi ~f:(fun idx phrase -> (Hashtbl.hash phrase, idx))
-        |> Hashtbl.of_alist_exn(module Int)
+        |> Hashtbl.of_alist_exn (module Int)
       in
-        List.map
-          ~f:(fun placeholder -> Hashtbl.find_exn sorted_parsemap placeholder)
-          parse
+      List.map
+        ~f:(fun placeholder -> Hashtbl.find_exn sorted_parsemap placeholder)
+        parse
     in
-    (dict_count, reorder_parse parse)
+    let freqs =
+      phrases |> List.map ~f:(fun p -> Hashtbl.find_exn dict_count p)
+    in
+
+    (phrases, freqs, parse)
   (* for testing *)
 
   let buildText (text : string) : text = text
 
   let dict_to_alist (dict : dict) : (string * int) list =
-    dict 
-    |> Hashtbl.to_alist 
-    |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)    
-
+    dict |> Hashtbl.to_alist
+    |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)
 
   (* let wrap_nth_exn list i = List.nth_exn list (i % List.length list) *)
   let wrap_get list i = IntSequence.get list (i % IntSequence.length list)
@@ -117,22 +116,19 @@ end) : PFP_S = struct
     | None -> false
 
   (* TODO: *)
-  let parse_to_BWT (parse : dict * int list) (w : int) : text =
-    let dic, parse = parse in
+  let parse_to_BWT (parse : parse) (w : int) : text =
+    let phrases, freqs, parse = parse in
     let parse = parse |> IntSequence.of_list in
-    let phrases = Hashtbl.keys dic in
-    let rank_to_phrase =
-      List.mapi phrases ~f:(fun i p -> (i, p)) |> Map.of_alist_exn (module Int)
-    in
     let parseSA = parse |> IntBWT.getSA in
-    let inv_list =
+    let inv_list = Hashtbl.create (module Int) in
+    let () =
       List.length parseSA :: parseSA
-      |> List.foldi ~init:InvList.empty ~f:(fun i acc p ->
+      |> List.iteri ~f:(fun i p ->
              match p with
-             | 0 -> acc
+             | 0 -> ()
              | idx ->
                  let p = IntSequence.get parse (idx - 1) in
-                 Map.add_multi acc ~key:(Map.find_exn rank_to_phrase p) ~data:i)
+                 Hashtbl.add_multi inv_list ~key:p ~data:i)
     in
     let () = printf "Inverted list (BWT(P)) computed\n%!" in
     let w_array =
@@ -145,7 +141,8 @@ end) : PFP_S = struct
     let () = printf "W array computed\n%!" in
     (* add suffixes s which are proper suffixes of a phrase d in D *)
     let beta =
-      List.foldi (Hashtbl.to_alist dic) ~init:ParseMapper.empty
+      List.zip_exn phrases freqs |>
+      List.foldi ~init:ParseMapper.empty
         ~f:(fun i acc (phrase, freq) ->
           let len = String.length phrase in
           List.fold
@@ -178,7 +175,7 @@ end) : PFP_S = struct
         then
           (*case where s is a member of D*)
           let occs =
-            List.sort (Map.find_exn inv_list phrase) ~compare:Int.compare
+            List.sort (Hashtbl.find_exn inv_list phrase) ~compare:Int.compare
           in
           List.fold occs ~init:bwt ~f:(fun seq p -> String.get w_array p :: seq)
         else if is_homogenous prevs then
@@ -190,13 +187,14 @@ end) : PFP_S = struct
           let order =
             List.map prevs ~f:(fun (c, d, _) ->
                 List.map
-                  (Map.find_exn inv_list (List.nth_exn phrases d))
+                  (Hashtbl.find_exn inv_list (List.nth_exn phrases d))
                   ~f:(fun p -> (c, p)))
             |> List.concat
             |> List.sort ~compare:(fun (_, p1) (_, p2) -> p1 - p2)
           in
           List.fold order ~init:bwt ~f:(fun seq (c, _) -> c :: seq))
     |> String.of_char_list |> String.rev
+
   let getBWT input_string w =
     let p = parse input_string w in
     parse_to_BWT p w

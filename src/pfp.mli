@@ -11,7 +11,7 @@ module type PFP_S = sig
 
   (** [parse txt w] Returns the dictionary and the parse for [txt] where [w] is the windows size used to perform
       hash computation that decides how to parse the input. **)
-  val parse : text -> int -> dict * int list
+  val parse : text -> int -> dict * (int list) * (int list) * (int list)
   val buildText : string -> text
   (** Sanity check to analyse dictionary contents **)
   val dict_to_alist : dict -> (string * int) list
