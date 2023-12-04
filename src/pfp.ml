@@ -115,11 +115,8 @@ end) : PFP_S = struct
     | Some _ -> true
     | None -> false
 
-  (* TODO: *)
-  let parse_to_BWT (parse : parse) (w : int) : text =
-    let phrases, freqs, parse = parse in
-    let parse = parse |> IntSequence.of_list in
-    let parseSA = parse |> IntBWT.getSA in
+  let build_ilist (parse : int array) (parseSA : int list) :
+      (int, int list) Hashtbl.t =
     let inv_list = Hashtbl.create (module Int) in
     let () =
       List.length parseSA :: parseSA
@@ -131,27 +128,41 @@ end) : PFP_S = struct
                  Hashtbl.add_multi inv_list ~key:p ~data:i)
     in
     let () = printf "Inverted list (BWT(P)) computed\n%!" in
+    inv_list
+
+  let build_bwtlast (w : int) (phrases : string list) (parseSA : int list)
+      (parse : int array) : string =
+    let phrases = Array.of_list phrases in
     let w_array =
       parseSA
       |> List.map ~f:(fun i ->
-             let cur_phrase = List.nth_exn phrases (wrap_get parse (i - 2)) in
+             let cur_phrase = Array.get phrases (wrap_get parse (i - 2)) in
              String.get cur_phrase (String.length cur_phrase - w - 1))
       |> String.of_char_list
     in
     let () = printf "W array computed\n%!" in
+    w_array
+
+  (* TODO: *)
+  let parse_to_BWT (parse : parse) (w : int) : text =
+    let phrases, freqs, parse = parse in
+    let parse = parse |> IntSequence.of_list in
+    let parseSA = parse |> IntBWT.getSA in
+    let bwtlast = build_bwtlast w phrases parseSA parse in
+    let inv_list = build_ilist parse parseSA in
+    
     (* add suffixes s which are proper suffixes of a phrase d in D *)
     let beta =
-      List.zip_exn phrases freqs |>
-      List.foldi ~init:ParseMapper.empty
-        ~f:(fun i acc (phrase, freq) ->
-          let len = String.length phrase in
-          List.fold
-            (List.range w (len - 1))
-            ~init:acc
-            ~f:(fun countmap p ->
-              Map.add_multi countmap
-                ~key:(String.suffix phrase (p + 1))
-                ~data:(String.get phrase (len - p - 2), i, freq)))
+      List.zip_exn phrases freqs
+      |> List.foldi ~init:ParseMapper.empty ~f:(fun i acc (phrase, freq) ->
+             let len = String.length phrase in
+             List.fold
+               (List.range w (len - 1))
+               ~init:acc
+               ~f:(fun countmap p ->
+                 Map.add_multi countmap
+                   ~key:(String.suffix phrase (p + 1))
+                   ~data:(String.get phrase (len - p - 2), i, freq)))
     in
     (* add suffixes s which are in D *)
     (* let beta =
@@ -176,9 +187,11 @@ end) : PFP_S = struct
           (*case where s is a member of D*)
           let occs =
             let _, _, phrase_rank = List.hd_exn prevs in
-            List.sort (Hashtbl.find_exn inv_list phrase_rank) ~compare:Int.compare
+            List.sort
+              (Hashtbl.find_exn inv_list phrase_rank)
+              ~compare:Int.compare
           in
-          List.fold occs ~init:bwt ~f:(fun seq p -> String.get w_array p :: seq)
+          List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq)
         else if is_homogenous prevs then
           (* case of no ambiguous preceding chars*)
           List.fold prevs ~init:bwt ~f:(fun curbwt (c, _, freq) ->
@@ -187,9 +200,7 @@ end) : PFP_S = struct
           (* Case where s appears as proper suffix of multiple phrases, which different preceding chars*)
           let order =
             List.map prevs ~f:(fun (c, d, _) ->
-                List.map
-                  (Hashtbl.find_exn inv_list d)
-                  ~f:(fun p -> (c, p)))
+                List.map (Hashtbl.find_exn inv_list d) ~f:(fun p -> (c, p)))
             |> List.concat
             |> List.sort ~compare:(fun (_, p1) (_, p2) -> p1 - p2)
           in
