@@ -4,9 +4,9 @@ open Naive_bwt
 module type PFP_S = sig
   type text = string
   type dict
-  type parse
+  type parse = string list * int list * int list
 
-  val parse : text -> int -> parse
+  val parse : ?verbose : bool -> text -> int -> parse
   val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
   val parse_to_BWT : parse -> int -> string
@@ -42,13 +42,13 @@ end) : PFP_S = struct
   (* rewrite to use indexes instead of passing in new text copies, esp no Stirng.drop_prefix *)
   (* now the helper takes in
      start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
-  let parse (text : text) (w : int) : parse =
+  let parse ?(verbose=false) (text : text) (w : int) : parse =
     let terminator = repeat '$' w in
     let dict_count = Hashtbl.create (module String) in
     (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
     let rec helper (pos : int) (parse : int list)
         ((phrase_start, phrase_end) : int * int) : int list =
-      let () =
+      let () = if verbose then
         if pos % (String.length text / 100) = 0 then
           printf "%d/100 done\n%!" (pos / (String.length text / 100))
       in
