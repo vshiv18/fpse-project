@@ -8,15 +8,16 @@ module type PFP_S = sig
   (* module Dict = Map.Make(String) *)
   (** Dictionary holding keywords and their counts in the parse **)
   type dict
+  type parse = string list * int list * int list
 
   (** [parse txt w] Returns the dictionary and the parse for [txt] where [w] is the windows size used to perform
       hash computation that decides how to parse the input. **)
-  val parse : text -> int -> dict * (int list) * (int list) * (int list)
+  val parse : ?verbose:bool -> text -> int -> parse
   val buildText : string -> text
   (** Sanity check to analyse dictionary contents **)
   val dict_to_alist : dict -> (string * int) list
   (** Given the dictionary and parse of the BWT, use it to compute the BWT of the original text **)
-  val parse_to_BWT : dict * int list -> int -> string
+  val parse_to_BWT : parse -> int -> string
   val getBWT : text -> int -> string
 end
 
