@@ -22,8 +22,7 @@ let fill s c len =
   String.concat
     [ s; repeat c (if len > String.length s then len - String.length s else 0) ]
 
-(* let repeat_list c k =
-   List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc) *)
+(* let repeat_list c k = List.init k ~f:(fun _ -> c) *)
 
 module PFP (Hash : sig
   val is_trigger_string : string -> bool
@@ -153,7 +152,7 @@ end) : PFP_S = struct
        in *)
     (* TODO: temp, throw "bad positions" in a set and filter that way *)
     (* alternatively, get bool array of good/bad positions to filter *)
-    let dict_concat = (phrases |> String.concat_array ~sep:"\x01") in
+    let dict_concat = phrases |> String.concat_array ~sep:"\x01" in
     let total_len = String.length dict_concat in
     let _, filter_pos =
       List.fold
@@ -171,13 +170,32 @@ end) : PFP_S = struct
       |> Array.of_list
     in
     let () = printf "computed filter positions\n%!" in
+
     (* replace below with SAIS method later *)
+
+    (* this slots into the SA construction nicely, but SLOW *)
+    (* let d_SA =
+         dict_concat |> StringBWT.getSA
+         |> List.filter_map ~f:(fun suffix_pos ->
+                let len, phrase_id = Array.get filter_pos suffix_pos in
+                if len <= w then None else Some (len, phrase_id))
+       in *)
+    (* this is the old method (using Map sort on suffix slices), much faster. but not scalable? *)
     let d_SA =
-      dict_concat |> StringBWT.getSA
-      |> List.filter_map ~f:(fun suffix_pos ->
-             let len, phrase_id = Array.get filter_pos suffix_pos in
-             if len <= w then None else Some (len, phrase_id))
+      Array.filter_map filter_pos ~f:(fun (len, phrase_id) ->
+          if len <= w then None
+          else
+            Some
+              ( String.slice
+                  (Array.get phrases phrase_id)
+                  (Array.get phrase_lengths phrase_id - len)
+                  0,
+                (len, phrase_id) ))
+      |> List.of_array
+      |> Map.of_alist_multi (module String)
+      |> Map.data |> List.concat
     in
+
     let () = printf "computed SA of dict\n%!" in
     (* fold, accumulator is (current output BWT, is buffer a dict phrase,
                             current representative phrase suffix, list of phrases that it occurs in) *)
@@ -185,14 +203,14 @@ end) : PFP_S = struct
       let occs = Hashtbl.find_exn inv_list phrase_id in
       List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq)
     in
-    
+
     let process_alpha
-        ((bwt, prev_alpha, prev_phrases) :
-          char list * string * int list) : char list =
-        if String.length prev_alpha = 0 then bwt else
-      (* if this is a phrase, get prev chars from BWTlast, in order of ilist (already sorted) *)
-              (* collect prev char of suffix from each phrase it appears in *)
-        
+        ((bwt, prev_alpha, prev_phrases) : char list * string * int list) :
+        char list =
+      if String.length prev_alpha = 0 then bwt
+      else
+        (* if this is a phrase, get prev chars from BWTlast, in order of ilist (already sorted) *)
+        (* collect prev char of suffix from each phrase it appears in *)
         let prev_chars =
           let offset = String.length prev_alpha in
           List.map prev_phrases ~f:(fun phrase_id ->
@@ -218,15 +236,23 @@ end) : PFP_S = struct
         ~f:(fun (bwt, prev_alpha, prev_phrases) (len, phrase_id) ->
           (* If suffix is a phrase from the dict, then process the buffer and set is_phrase = true to use BWTlast next iteration *)
           if len = Array.get phrase_lengths phrase_id then
-            ( process_phrase (process_alpha (bwt, prev_alpha, prev_phrases)) phrase_id,
+            ( process_phrase
+                (process_alpha (bwt, prev_alpha, prev_phrases))
+                phrase_id,
               "",
-              [])
+              [] )
           else
             (* Check if we are in the same "alpha" range *)
-            let cur_suffix = String.slice (Array.get phrases phrase_id) ((Array.get phrase_lengths phrase_id) - len) 0 in
+            let cur_suffix =
+              String.slice
+                (Array.get phrases phrase_id)
+                (Array.get phrase_lengths phrase_id - len)
+                0
+            in
             (* if so, add phrase id to buffer *)
-            if ((String.length prev_alpha) = 0) || (String.( = ) cur_suffix prev_alpha) then
-              (bwt, cur_suffix, phrase_id :: prev_phrases)
+            if
+              String.length prev_alpha = 0 || String.( = ) cur_suffix prev_alpha
+            then (bwt, cur_suffix, phrase_id :: prev_phrases)
             else
               (* otherwise process buffer and start new alpha range *)
               ( process_alpha (bwt, prev_alpha, prev_phrases),
