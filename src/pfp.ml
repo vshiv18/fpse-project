@@ -113,6 +113,7 @@ end) : PFP_S = struct
       (int, int list) Hashtbl.t =
     let inv_list = Hashtbl.create (module Int) in
     List.length parseSA :: parseSA
+    |> List.filter ~f:(fun x -> x <> 0)
     |> List.iteri ~f:(fun i p ->
            match p with
            | 0 -> ()
@@ -181,7 +182,6 @@ end) : PFP_S = struct
     (* fold, accumulator is (current output BWT, is buffer a dict phrase,
                             current representative phrase suffix, list of phrases that it occurs in) *)
     let process_phrase bwt phrase_id =
-      let () = printf "processing phrase %d \n%!" phrase_id in
       let occs = Hashtbl.find_exn inv_list phrase_id in
       List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq)
     in
@@ -216,10 +216,8 @@ end) : PFP_S = struct
     let bwt, prev_alpha, prev_phrases =
       List.fold d_SA ~init:([], "", [])
         ~f:(fun (bwt, prev_alpha, prev_phrases) (len, phrase_id) ->
-          let () = printf "%s\n%!" (List.to_string bwt ~f:Char.to_string) in 
           (* If suffix is a phrase from the dict, then process the buffer and set is_phrase = true to use BWTlast next iteration *)
           if len = Array.get phrase_lengths phrase_id then
-            let () = printf "phrase found %s\n%!" (Array.get phrases phrase_id) in 
             ( process_phrase (process_alpha (bwt, prev_alpha, prev_phrases)) phrase_id,
               "",
               [])
@@ -228,7 +226,6 @@ end) : PFP_S = struct
             let cur_suffix = String.slice (Array.get phrases phrase_id) ((Array.get phrase_lengths phrase_id) - len) 0 in
             (* if so, add phrase id to buffer *)
             if ((String.length prev_alpha) = 0) || (String.( = ) cur_suffix prev_alpha) then
-              let () = printf "%s\n%!" cur_suffix in
               (bwt, cur_suffix, phrase_id :: prev_phrases)
             else
               (* otherwise process buffer and start new alpha range *)
