@@ -8,3 +8,4 @@ module type S = sig
 end
 
 module Int32Serializer : S with type t = int
+module StringSerializer : S with type t = string

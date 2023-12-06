@@ -47,3 +47,22 @@ module Int32Serializer : S with type t = int = struct
         in
         f [])
 end
+
+module StringSerializer : S with type t = string = struct
+  type t = string
+
+  let separator : char = '\001'
+
+  let write (filename : string) (x : t) : unit =
+    Out_channel.with_file filename ~f:(fun oc -> Out_channel.output_string oc x)
+
+  let write_list (filename : string) (ls : t list) : unit =
+    Out_channel.with_file filename ~f:(fun oc ->
+        Out_channel.output_string oc
+          (String.concat ~sep:(String.of_char separator) ls))
+
+  let read (filename : string) : t = In_channel.read_all filename
+
+  let read_list (filename : string) : t list =
+    In_channel.read_all filename |> String.split ~on:separator
+end

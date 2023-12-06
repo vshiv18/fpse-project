@@ -1,5 +1,6 @@
 open Core
 open Naive_bwt
+open Serialize
 
 module type PFP_S = sig
   type text = string
@@ -11,6 +12,8 @@ module type PFP_S = sig
   val dict_to_alist : dict -> (string * int) list
   val parse_to_BWT : parse -> int -> string
   val getBWT : text -> int -> string
+  val save_parse : parse -> string -> unit
+  val load_parse : string -> parse
 end
 
 (* let repeat c k =
@@ -267,4 +270,16 @@ end) : PFP_S = struct
   let getBWT input_string w =
     let p = parse input_string w in
     parse_to_BWT p w
+
+  let save_parse (parse : parse) (out_dir : string) : unit =
+    let dict, freq, parse = parse in
+    StringSerializer.write_list (Filename.concat out_dir "dict") dict;
+    Int32Serializer.write_list (Filename.concat out_dir "freq") freq;
+    Int32Serializer.write_list (Filename.concat out_dir "parse") parse
+
+  let load_parse (parse_dir : string) =
+    let dict = StringSerializer.read_list (Filename.concat parse_dir "dict") in
+    let freq = Int32Serializer.read_list (Filename.concat parse_dir "freq") in
+    let parse = Int32Serializer.read_list (Filename.concat parse_dir "parse") in
+    (dict, freq, parse)
 end

@@ -1,11 +1,3 @@
-; (library
-;   (name RollHash)
-;   (modules hash)
-;   (libraries 
-;     core)
-;   (preprocess
-;   (pps ppx_jane)))
-
 (library
  (name serialize)
  (modules serialize)
@@ -13,25 +5,31 @@
  (preprocess
   (pps ppx_jane)))
 
-; (library
-;   (name BigBWT)
-;   (modules naive_bwt pfp fm_index)
-;   (modules_without_implementation fm_index)
-;   (libraries 
-;     core
-;     RollHash)
-;   (preprocess
-;   (pps ppx_jane)))
+(library
+ (name RollHash)
+ (modules hash)
+ (libraries core)
+ (preprocess
+  (pps ppx_jane)))
 
-; (executable
-;   (name buildBWT)
-;   (modules
-;     buildBWT)
-;   (libraries
-;     core
-;     core_unix.sys_unix
-;     stdio
-;     BigBWT
-;     RollHash)
-;   (preprocess
-;     (pps ppx_jane)))
+(library
+ (name BigBWT)
+ (modules naive_bwt pfp fm_index)
+ (modules_without_implementation fm_index)
+ (libraries core RollHash serialize)
+ (preprocess
+  (pps ppx_jane)))
+
+(executable
+ (name bwt)
+ (modules bwt)
+ (libraries
+  core
+  core_unix.sys_unix
+  core_unix.command_unix
+  stdio
+  BigBWT
+  RollHash
+  serialize)
+ (preprocess
+  (pps ppx_jane)))
