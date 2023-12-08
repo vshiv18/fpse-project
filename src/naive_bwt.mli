@@ -3,7 +3,7 @@
     can use mutatable data structures to implement, but Sequence itself does not support any mutation over them. **)
 module type Sequence = sig
   module Item : sig
-    type t [@@deriving compare]
+    type t [@@deriving compare, sexp, hash]
   end
 
   type t
@@ -13,6 +13,7 @@ module type Sequence = sig
   val get : t -> int -> Item.t
   val length : t -> int
   val of_list : Item.t list -> t
+  val to_list : t -> Item.t list
   val of_seq : t -> t
   val fold : t -> init:'acc -> f:('acc -> Item.t -> 'acc) -> 'acc
 end
