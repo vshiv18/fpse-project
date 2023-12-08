@@ -1,7 +1,16 @@
-type t = { name : string; sequence : string }
+type 'a chunk = Stop of 'a | Continue of 'a
 
-val clean_name : string -> string
-val clean_sequence : string list -> string
-val make_sequence : string -> t
-val get_sequences : string -> string list
-val parse_fasta : string -> t list
+module Chunk : sig
+  val value : 'a chunk -> 'a
+end
+
+module type FASTAStreamerConfig = sig
+  val filename : string
+  val chunk_size : int
+end
+
+module type S = sig
+  val next : unit -> string chunk
+end
+
+module FASTAStreamer (_ : FASTAStreamerConfig) : S

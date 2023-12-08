@@ -1,44 +1,64 @@
 open Core
 
-type t = { name : string; sequence : string } [@@deriving sexp]
-type nucleotide = A | C | G | T [@@deriving sexp]
+type 'a chunk = Stop of 'a | Continue of 'a
 
-let nucleotide_of_char (c : char) : nucleotide option =
-  match c with
-  | 'A' -> Some A
-  | 'C' -> Some C
-  | 'G' -> Some G
-  | 'T' -> Some T
-  | _ -> None
+module Chunk = struct
+  let value (chunk : 'a chunk) : 'a =
+    match chunk with Stop v | Continue v -> v
+end
 
-let seq_separator = '>'
+module type FASTAStreamerConfig = sig
+  val filename : string
+  val chunk_size : int
+end
 
-let clean_name (name : string) : string =
-  String.fold_until name ~init:""
-    ~f:(fun acc x ->
-      if Char.is_whitespace x then Stop acc
-      else Continue (acc ^ String.of_char x))
-    ~finish:(fun acc -> acc)
+module type S = sig
+  val next : unit -> string chunk
+end
 
-let clean_sequence (sequence : string list) : string =
-  String.concat ~sep:"" sequence
-  |> String.uppercase
-  |> String.filter ~f:(fun x ->
-         match nucleotide_of_char x with Some _ -> true | None -> false)
+module FASTAStreamer (Config : FASTAStreamerConfig) : S = struct
+  type nucleotide = A | C | G | T
 
-let make_sequence (sequence : string) : t =
-  match sequence with
-  | "" -> failwith "Empty sequence"
-  | _ -> (
-      match String.split_lines sequence with
-      | [] -> failwith "Invalid sequence"
-      | _ :: [] -> failwith "Invalid sequence"
-      | name :: sequence ->
-          { name = clean_name name; sequence = clean_sequence sequence })
+  let fasta_seq_separator : char = '>'
+  let parse_seq_separator : char = '$'
+  let new_line : char = '\n'
+  let char_in_sequence = ref true
+  let toggle_char_in_sequence () = char_in_sequence := not !char_in_sequence
 
-let get_sequences (content : string) : string list =
-  String.split ~on:seq_separator content
-  |> List.filter ~f:(fun s -> not (String.is_empty s))
+  let nucleotide_of_char (c : char) : nucleotide option =
+    match c with
+    | 'A' -> Some A
+    | 'C' -> Some C
+    | 'G' -> Some G
+    | 'T' -> Some T
+    | _ -> None
 
-let parse_fasta (filename : string) : t list =
-  In_channel.read_all filename |> get_sequences |> List.map ~f:make_sequence
+  let channel : In_channel.t = In_channel.create Config.filename
+  let buffer : Buffer.t = Buffer.create Config.chunk_size
+
+  let parse_char (c : char) : bool =
+    match !char_in_sequence with
+    | true -> (
+        if Char.equal c parse_seq_separator then (
+          toggle_char_in_sequence ();
+          true)
+        else match nucleotide_of_char c with Some _ -> true | None -> false)
+    | false ->
+        if Char.equal c new_line then (
+          toggle_char_in_sequence ();
+          false)
+        else false
+
+  let parse_buffer (buffer : Buffer.t) : string =
+    String.filter
+      (Buffer.contents buffer
+      |> String.tr ~target:fasta_seq_separator ~replacement:parse_seq_separator
+      |> String.uppercase)
+      ~f:parse_char
+
+  let next () : string chunk =
+    Buffer.reset buffer;
+    match In_channel.input_buffer channel buffer ~len:Config.chunk_size with
+    | Some _ -> Continue (parse_buffer buffer)
+    | None -> Stop (parse_buffer buffer)
+end
