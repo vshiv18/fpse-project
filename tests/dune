@@ -1,6 +1,4 @@
 (tests
- ; (names tests fasta)
- ; (libraries core ounit2 BigBWT biocaml.unix)
  (names tests)
  (libraries core ounit2 BigBWT)
  (preprocess (pps ppx_jane)))

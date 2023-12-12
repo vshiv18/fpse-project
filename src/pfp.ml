@@ -1,178 +1,285 @@
 open Core
 open Naive_bwt
+open Serialize
 
 module type PFP_S = sig
   type text = string
   type dict
+  type parse = string list * int list * int list
 
-  val parse : text -> int -> dict * int list
+  val parse : ?verbose:bool -> text -> int -> parse
   val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
-  val parse_to_BWT : dict * int list -> int -> string
+  val parse_to_BWT : parse -> int -> string
   val getBWT : text -> int -> string
+  val save_parse : parse -> string -> unit
+  val load_parse : string -> parse
 end
 
-let repeat c k =
-  String.of_char_list
-    (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc))
-let repeat_list c k =
-    (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc))
+(* let repeat c k =
+   String.of_char_list
+     (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc)) *)
+let repeat c k = String.init k ~f:(fun _ -> c)
+
+let fill s c len =
+  String.concat
+    [ s; repeat c (if len > String.length s then len - String.length s else 0) ]
+
+(* let repeat_list c k = List.init k ~f:(fun _ -> c) *)
 
 module PFP (Hash : sig
   val is_trigger_string : string -> bool
 end) : PFP_S = struct
   type text = string
 
-  module Dict = Map.Make (String)
+  module Dict = Hashtbl.Make (String)
 
   type dict = int Dict.t
-  type dict_counter = bool list Dict.t
+  type parse = string list * int list * int list
 
   module ParseMapper = Map.Make (String)
-
-  type parse_mapper = int ParseMapper.t
-
-  module ParseSorter = Map.Make (Int)
-  module InvList = Map.Make (String)
-
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
-  let parse (text : text) (w : int) : dict * int list =
-    let rec helper (text : text) (dict : dict_counter) (parse : int list)
-        (parsemap : parse_mapper) (current_phrase : string list) :
-        dict_counter * int list * parse_mapper =
-      if String.length text = 0 then (dict, parse, parsemap)
+  (* rewrite to use indexes instead of passing in new text copies, esp no Stirng.drop_prefix *)
+  (* now the helper takes in
+     start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
+  let parse ?(verbose = false) (text : text) (w : int) : parse =
+    let terminator = repeat '$' w in
+    let dict_count = Hashtbl.create (module String) in
+    (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
+    let rec helper (pos : int) (parse : int list)
+        ((phrase_start, phrase_end) : int * int) : int list =
+      let () =
+        if verbose then
+          if pos % (String.length text / 100) = 0 then
+            printf "%d/100 done\n%!" (pos / (String.length text / 100))
+      in
+      if pos > String.length text then parse
       else
-        let cur_trigger = String.prefix text w in
-        match (String.(=) cur_trigger (repeat '$' w)) || (Hash.is_trigger_string cur_trigger) with
-        | false ->
-            helper
-              (String.drop_prefix text 1)
-              dict parse parsemap
-              (String.prefix text 1 :: current_phrase)
+        let cur_trigger =
+          if pos + w > String.length text then
+            fill (String.slice text pos 0) '$' w
+          else String.slice text pos (pos + w)
+        in
+        match
+          String.( = ) cur_trigger terminator
+          || Hash.is_trigger_string cur_trigger
+        with
+        | false -> helper (pos + 1) parse (phrase_start, phrase_end + 1)
         | true ->
             let final_phrase =
-              String.rev
-                (String.concat
-                   [ String.rev cur_trigger; String.concat current_phrase ])
+              let final_phrase =
+                if phrase_end + w > String.length text then
+                  String.slice text phrase_start 0 ^ terminator
+                else String.slice text phrase_start (phrase_end + w)
+              in
+              if phrase_start = 0 then "$" ^ final_phrase else final_phrase
             in
-            let new_parsemapper =
-              if Map.mem dict final_phrase then parsemap
-              else
-                Map.add_exn parsemap ~key:final_phrase ~data:(Map.length dict)
-            in
-            let new_dict = Map.add_multi dict ~key:final_phrase ~data:true in
-            helper
-              (String.drop_prefix text 1)
-              new_dict
-              (Map.find_exn new_parsemapper final_phrase :: parse)
-              new_parsemapper
-              [String.prefix text 1]
+            let () = Hashtbl.incr dict_count final_phrase in
+            helper (pos + 1) (Hashtbl.hash final_phrase :: parse) (pos, pos + 1)
     in
-    let dict, parse, parsemap =
-      helper
-        (String.concat [ "$"; text; repeat '$' w ])
-        Dict.empty [] ParseMapper.empty []
+    let parse = List.rev (helper 0 [] (0, 0)) in
+    let phrases =
+      dict_count |> Hashtbl.keys |> List.sort ~compare:String.compare
     in
-    let dict = Map.map dict ~f:(fun count -> List.length count) in
-    let parse = List.rev parse in
-    let reorder_parse (dict : dict) (parse : int list) (parsemap : parse_mapper)
-        =
+    let parse =
       let sorted_parsemap =
-        Map.to_alist ~key_order:`Increasing parsemap
-        |> List.mapi ~f:(fun idx (_, placeholder) -> (placeholder, idx))
-        |> ParseSorter.of_alist_exn
+        phrases
+        |> List.mapi ~f:(fun idx phrase -> (Hashtbl.hash phrase, idx))
+        |> Hashtbl.of_alist_exn (module Int)
       in
-      let parse =
-        List.map
-          ~f:(fun placeholder -> Map.find_exn sorted_parsemap placeholder)
-          parse
-      in
-      (dict, parse)
+      List.map
+        ~f:(fun placeholder -> Hashtbl.find_exn sorted_parsemap placeholder)
+        parse
     in
-    reorder_parse dict parse parsemap
+    let freqs =
+      phrases |> List.map ~f:(fun p -> Hashtbl.find_exn dict_count p)
+    in
+
+    (phrases, freqs, parse)
   (* for testing *)
 
   let buildText (text : string) : text = text
 
   let dict_to_alist (dict : dict) : (string * int) list =
-    Map.to_alist ~key_order:`Increasing dict
+    dict |> Hashtbl.to_alist
+    |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)
 
-  let wrap_nth_exn list i = List.nth_exn list (i % List.length list)
+  (* let wrap_nth_exn list i = List.nth_exn list (i % List.length list) *)
+  let wrap_get list i = IntSequence.get list (i % IntSequence.length list)
+
   (* let wrap_get string i = String.get string (i % String.length string) *)
 
-  let is_homogenous l =
-    match
-      List.all_equal ~equal:Char.( = ) (List.map ~f:(fun (x, _, _) -> x) l)
-    with
-    | Some _ -> true
-    | None -> false
-  
-  (* TODO: *)
-  let parse_to_BWT (parse : dict * int list) (w : int) : text=
-    let dic, parse = parse in
-    let phrases = Map.keys dic in
-    let rank_to_phrase =
-      List.mapi phrases ~f:(fun i p -> (i, p)) |> Map.of_alist_exn (module Int)
-    in
-    let parseBWT =
-      parse |> IntSequence.of_list |> IntBWT.getBWT |> List.of_array
-    in
-    let inv_list =
-      parseBWT
-      |> List.filter ~f:(fun x -> x <> -1)
-      |> List.foldi ~init:InvList.empty ~f:(fun i acc p ->
-             Map.add_multi acc ~key:(Map.find_exn rank_to_phrase p) ~data:i)
-    in
+  let build_ilist (parse : int array) (parseSA : int list) :
+      (int, int list) Hashtbl.t =
+    let inv_list = Hashtbl.create (module Int) in
+    List.length parseSA :: parseSA
+    |> List.filter ~f:(fun x -> x <> 0)
+    |> List.iteri ~f:(fun i p ->
+           match p with
+           | 0 -> ()
+           | idx ->
+               let p = IntSequence.get parse (idx - 1) in
+               Hashtbl.add_multi inv_list ~key:p ~data:i);
+    Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:Int.compare);
+    printf "Inverted list (BWT(P)) computed\n%!";
+    inv_list
+
+  let build_bwtlast (w : int) (phrases : string array) (parseSA : int list)
+      (parse : int array) : string =
     let w_array =
-      parse |> IntSequence.of_list |> IntBWT.getSA
+      parseSA
       |> List.map ~f:(fun i ->
-             let cur_phrase =
-               List.nth_exn phrases (wrap_nth_exn parse (i - 2))
-             in
+             let cur_phrase = Array.get phrases (wrap_get parse (i - 2)) in
              String.get cur_phrase (String.length cur_phrase - w - 1))
       |> String.of_char_list
     in
-    (* add suffixes s which are proper suffixes of a phrase d in D *)
-    let beta =
-      List.foldi (Map.to_alist dic) ~init:ParseMapper.empty ~f:(fun i acc (phrase, freq) ->
-          let len = String.length phrase in
-          List.fold
-            (List.range w (len - 1))
-            ~init:acc
-            ~f:(fun countmap p ->
-              Map.add_multi countmap
-                ~key:(String.suffix phrase (p + 1))
-                ~data:(String.get phrase (len - p - 2), i, freq)))
+    let () = printf "W array computed\n%!" in
+    w_array
+
+  (* TODO: *)
+  let parse_to_BWT (parse : parse) (w : int) : text =
+    let phrases, _, parse = parse in
+    (* let freqs = Array.of_list freqs in *)
+    let phrases = Array.of_list phrases in
+    let phrase_lengths = phrases |> Array.map ~f:String.length in
+    let parse = parse |> IntSequence.of_list in
+    let parseSA = parse |> IntBWT.getSA in
+    let bwtlast = build_bwtlast w phrases parseSA parse in
+    let inv_list = build_ilist parse parseSA in
+    (* let phrase_starts = phrases
+         |> Array.folding_map ~init:(-1) ~f:(fun acc phrase ->
+           (acc + (String.length phrase) + 1, acc + 1)
+         )
+       in *)
+    (* TODO: temp, throw "bad positions" in a set and filter that way *)
+    (* alternatively, get bool array of good/bad positions to filter *)
+    let dict_concat = phrases |> String.concat_array ~sep:"\x01" in
+    let total_len = String.length dict_concat in
+    let _, filter_pos =
+      List.fold
+        (List.range ~stride:(-1) (total_len - 1) (-1))
+        ~init:(total_len, [])
+        ~f:(fun (last_delim, lens) idx ->
+          if Char.( = ) (String.get dict_concat idx) '\x01' then (idx, 0 :: lens)
+          else (last_delim, (last_delim - idx) :: lens))
     in
-    (* add suffixes s which are in D *)
-    (* let beta =
-      List.foldi phrases ~init:beta ~f:(fun i acc phrase ->
-          let occs = Map.find_exn inv_list phrase in
-          List.fold occs ~init:acc ~f:(fun countmap p ->
-              Map.add_multi countmap ~key:phrase ~data:(String.get w_array p, i, 1))) *)
-    let beta =
-      List.fold phrases ~init:beta ~f:(fun acc phrase -> Map.add_exn acc ~key:phrase ~data:[(' ', -1, 0)])
-    in 
-    (* beta contains a map of s (phrase suffix) -> list of (prev character, original phrase rank, frequency) 
-       If s is a phrase, then it stores a dummy (' ', -1, 0), which is used as an indicator that chars should be pulled from W *)
-    List.fold (Map.to_alist beta) ~init:[] ~f:(fun bwt (phrase, prevs) ->
-        if ((List.length prevs) = 1) && (let _, i, _ = (List.hd_exn prevs) in i = -1) then  (*case where s is a member of D*)
-          let occs = List.sort (Map.find_exn inv_list phrase) ~compare:Int.compare in
-          List.fold occs ~init:bwt ~f:(fun seq p -> (String.get w_array p) :: seq)
-        
-        else if is_homogenous prevs then                                             (* case of no ambiguous preceding chars*)
-          List.fold prevs ~init:bwt ~f:(fun curbwt (c, _, freq) ->
-            List.concat [repeat_list c freq; curbwt])
-        
-        else                                                                     (* Case where s appears as proper suffix of multiple phrases, which different preceding chars*)
-          let order = List.map prevs ~f:(fun (c, d, _) ->
-            List.map (Map.find_exn inv_list (List.nth_exn phrases d)) ~f:(fun p -> (c, p))
-            ) |> List.concat |> List.sort ~compare:(fun (_, p1) (_, p2) -> p1 - p2) in
-          List.fold order ~init:bwt ~f:(fun seq (c, _) -> c :: seq)
-        )
-    |> String.of_char_list |> String.rev
-  
-  let getBWT input_string w = let p = parse input_string w in parse_to_BWT p w
+    let filter_pos =
+      List.folding_mapi filter_pos ~init:0 ~f:(fun i phrase_count length ->
+          if Char.( = ) (String.get dict_concat i) '\x01' then
+            (phrase_count + 1, (length, phrase_count))
+          else (phrase_count, (length, phrase_count)))
+      |> Array.of_list
+    in
+    let () = printf "computed filter positions\n%!" in
+
+    (* replace below with SAIS method later *)
+
+    (* this slots into the SA construction nicely, but SLOW *)
+    (* let d_SA =
+         dict_concat |> StringBWT.getSA
+         |> List.filter_map ~f:(fun suffix_pos ->
+                let len, phrase_id = Array.get filter_pos suffix_pos in
+                if len <= w then None else Some (len, phrase_id))
+       in *)
+    (* this is the old method (using Map sort on suffix slices), much faster. but not scalable? *)
+    let d_SA =
+      Array.filter_map filter_pos ~f:(fun (len, phrase_id) ->
+          if len <= w then None
+          else
+            Some
+              ( String.slice
+                  (Array.get phrases phrase_id)
+                  (Array.get phrase_lengths phrase_id - len)
+                  0,
+                (len, phrase_id) ))
+      |> List.of_array
+      |> Map.of_alist_multi (module String)
+      |> Map.data |> List.concat
+    in
+
+    let () = printf "computed SA of dict\n%!" in
+    (* fold, accumulator is (current output BWT, is buffer a dict phrase,
+                            current representative phrase suffix, list of phrases that it occurs in) *)
+    let process_phrase bwt phrase_id =
+      let occs = Hashtbl.find_exn inv_list phrase_id in
+      List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq)
+    in
+
+    let process_alpha
+        ((bwt, prev_alpha, prev_phrases) : char list * string * int list) :
+        char list =
+      if String.length prev_alpha = 0 then bwt
+      else
+        (* if this is a phrase, get prev chars from BWTlast, in order of ilist (already sorted) *)
+        (* collect prev char of suffix from each phrase it appears in *)
+        let prev_chars =
+          let offset = String.length prev_alpha in
+          List.map prev_phrases ~f:(fun phrase_id ->
+              let phrase = Array.get phrases phrase_id in
+              String.get phrase (String.length phrase - offset - 1))
+        in
+        (* merge ilists from each phrase (remembering prev char for each phrase) *)
+        let merged_ilist =
+          prev_phrases |> List.zip_exn prev_chars
+          |> List.map ~f:(fun (c, x) ->
+                 Hashtbl.find_exn inv_list x |> List.map ~f:(fun p -> (p, c)))
+          |> List.fold ~init:[] ~f:(fun acc l ->
+                 List.merge acc l ~compare:(fun (x1, _) (x2, _) ->
+                     Int.compare x1 x2))
+        in
+
+        (* read off prev chars in order of ilist positions *)
+        List.fold merged_ilist ~init:bwt ~f:(fun seq (_, c) -> c :: seq)
+    in
+    (* fold through SA of dict *)
+    let bwt, prev_alpha, prev_phrases =
+      List.fold d_SA ~init:([], "", [])
+        ~f:(fun (bwt, prev_alpha, prev_phrases) (len, phrase_id) ->
+          (* If suffix is a phrase from the dict, then process the buffer and set is_phrase = true to use BWTlast next iteration *)
+          if len = Array.get phrase_lengths phrase_id then
+            ( process_phrase
+                (process_alpha (bwt, prev_alpha, prev_phrases))
+                phrase_id,
+              "",
+              [] )
+          else
+            (* Check if we are in the same "alpha" range *)
+            let cur_suffix =
+              String.slice
+                (Array.get phrases phrase_id)
+                (Array.get phrase_lengths phrase_id - len)
+                0
+            in
+            (* if so, add phrase id to buffer *)
+            if
+              String.length prev_alpha = 0 || String.( = ) cur_suffix prev_alpha
+            then (bwt, cur_suffix, phrase_id :: prev_phrases)
+            else
+              (* otherwise process buffer and start new alpha range *)
+              ( process_alpha (bwt, prev_alpha, prev_phrases),
+                cur_suffix,
+                [ phrase_id ] ))
+    in
+    process_alpha (bwt, prev_alpha, prev_phrases)
+    (* we get the reverse BWT as a list of chars, post-processing *)
+    |> String.of_char_list
+    |> String.rev
+
+  let getBWT input_string w =
+    let p = parse input_string w in
+    parse_to_BWT p w
+
+  let save_parse (parse : parse) (out_dir : string) : unit =
+    let dict, freq, parse = parse in
+    StringSerializer.write_list (Filename.concat out_dir "dict") dict;
+    Int32Serializer.write_list (Filename.concat out_dir "freq") freq;
+    Int32Serializer.write_list (Filename.concat out_dir "parse") parse
+
+  let load_parse (parse_dir : string) =
+    let dict = StringSerializer.read_list (Filename.concat parse_dir "dict") in
+    let freq = Int32Serializer.read_list (Filename.concat parse_dir "freq") in
+    let parse = Int32Serializer.read_list (Filename.concat parse_dir "parse") in
+    (dict, freq, parse)
 end

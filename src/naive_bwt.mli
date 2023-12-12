@@ -37,6 +37,7 @@ module Text (Sequence : Sequence) : sig
   (* val getSuffix : text -> int -> text *)
   (** Returns the Burrows-Wheeler Transform of a text; sort cyclic rotations as a matrix and take its last column **)
   val getBWT : text -> text
+  val bwt_from_SA : text -> int list -> text
   (** Run-length encode a BWT, e.g. AAABB$AA returns [(A, 3); (B, 2); ($, 1); (A, 2)] **)
   val rle_BWT : text -> (Sequence.Item.t * int) list
 end
