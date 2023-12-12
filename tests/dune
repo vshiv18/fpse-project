@@ -1,4 +1,5 @@
 (tests
- (names test_bigbwt test_fasta)
+ (names test_bigbwt)
  (libraries core ounit2 BigBWT fasta)
+ (deps ./data/fasta.test ./data/big.txt ./data/big_bwt.txt)
  (preprocess (pps ppx_jane)))
