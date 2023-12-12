@@ -10,7 +10,7 @@ let get_do_mode (parse_target : string option) (parse_dir : string option) =
   | _ -> None "Exactly one of --parse or --parse_dir needs to be set"
 
 let prepare_parse_dir (target : string) (out_dir : string) : string =
-  let target_name, _ = Filename.split_extension target in
+  let target_name, _ = let _, fname = Filename.split target in Filename.split_extension fname in
   let parse_dir = Filename.concat out_dir target_name in
   match Sys_unix.file_exists parse_dir with
   | `Yes -> parse_dir

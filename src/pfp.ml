@@ -177,12 +177,13 @@ end) : PFP_S = struct
     (* replace below with SAIS method later *)
 
     (* this slots into the SA construction nicely, but SLOW *)
-    let d_SA =
+    (* let d_SA =
          dict_concat |> StringBWT.getSA
          |> List.filter_map ~f:(fun suffix_pos ->
                 let len, phrase_id = Array.get filter_pos suffix_pos in
                 if len <= w then None else Some (len, phrase_id))
-       in
+       in *)
+
     (* this is the old method (using Map sort on suffix slices), much faster. but not scalable? *)
     (* let d_SA =
       Array.filter_map filter_pos ~f:(fun (len, phrase_id) ->
@@ -198,6 +199,17 @@ end) : PFP_S = struct
       |> Map.of_alist_multi (module String)
       |> Map.data |> List.concat
     in *)
+    let () = printf "number of phrases: %d\n%!" (Array.length phrases) in
+    let () = Out_channel.write_all "/Users/vikram/Documents/jhu/third_year/fpse/fpse-project/dict_concat.txt" ~data:dict_concat in
+    (* use the SAIS SA construction *)
+    let d_SA =
+      dict_concat |> Sais.SAIS.getSA
+      |> List.of_array
+      |> List.filter_map ~f:(fun suffix_pos ->
+            if suffix_pos = (String.length dict_concat) then None else 
+             let len, phrase_id = Array.get filter_pos suffix_pos in
+             if len <= w then None else Some (len, phrase_id))
+    in
 
     let () = printf "computed SA of dict\n%!" in
     (* fold, accumulator is (current output BWT, is buffer a dict phrase,
