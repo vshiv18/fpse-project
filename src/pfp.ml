@@ -25,6 +25,14 @@ let fill s c len =
   String.concat
     [ s; repeat c (if len > String.length s then len - String.length s else 0) ]
 
+let update_dict dict k = 
+  let idx, _ = Hashtbl.update_and_return dict k ~f:(fun value ->
+    match value with
+    | Some (idx, freq) -> (idx, freq + 1)
+    | None -> (Hashtbl.length dict, 1)
+    )
+  in idx
+
 (* let repeat_list c k = List.init k ~f:(fun _ -> c) *)
 
 module PFP (Hash : sig
@@ -44,12 +52,13 @@ end) : PFP_S = struct
   (* rewrite to use indexes instead of passing in new text copies, esp no Stirng.drop_prefix *)
   (* now the helper takes in
      start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
-  let parse ?(verbose = false) (text : text) (w : int) : parse =
+  let parse ?(verbose = false) (text : text) (w : int): parse =
     let terminator = repeat '$' w in
     let dict_count = Hashtbl.create (module String) in
     (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
     let rec helper (pos : int) (parse : int list)
-        ((phrase_start, phrase_end) : int * int) : int list =
+        ((phrase_start, phrase_end) : int * int) 
+        (phrase_count : int) : int list =
       let () =
         if verbose then
           if pos % (String.length text / 100) = 0 then
@@ -66,7 +75,7 @@ end) : PFP_S = struct
           String.( = ) cur_trigger terminator
           || Hash.is_trigger_string cur_trigger
         with
-        | false -> helper (pos + 1) parse (phrase_start, phrase_end + 1)
+        | false -> helper (pos + 1) parse (phrase_start, phrase_end + 1) phrase_count
         | true ->
             let final_phrase =
               let final_phrase =
@@ -76,17 +85,18 @@ end) : PFP_S = struct
               in
               if phrase_start = 0 then "$" ^ final_phrase else final_phrase
             in
-            let () = Hashtbl.incr dict_count final_phrase in
-            helper (pos + 1) (Hashtbl.hash final_phrase :: parse) (pos, pos + 1)
+            let idx = update_dict dict_count final_phrase in
+            helper (pos + 1) (idx :: parse) (pos, pos + 1) phrase_count
     in
-    let parse = List.rev (helper 0 [] (0, 0)) in
+    let parse = List.rev (helper 0 [] (0, 0) 0) in
     let phrases =
       dict_count |> Hashtbl.keys |> List.sort ~compare:String.compare
     in
+    let () = printf "number of phrases: %d\n%!" (List.length phrases) in
     let parse =
       let sorted_parsemap =
         phrases
-        |> List.mapi ~f:(fun idx phrase -> (Hashtbl.hash phrase, idx))
+        |> List.mapi ~f:(fun i phrase -> (let idx, _ = Hashtbl.find_exn dict_count phrase in idx, i))
         |> Hashtbl.of_alist_exn (module Int)
       in
       List.map
@@ -94,9 +104,8 @@ end) : PFP_S = struct
         parse
     in
     let freqs =
-      phrases |> List.map ~f:(fun p -> Hashtbl.find_exn dict_count p)
+      phrases |> List.map ~f:(fun p -> let _, freq = Hashtbl.find_exn dict_count p in freq)
     in
-
     (phrases, freqs, parse)
   (* for testing *)
 
@@ -111,12 +120,12 @@ end) : PFP_S = struct
 
   (* let wrap_get string i = String.get string (i % String.length string) *)
 
-  let build_ilist (parse : int array) (parseSA : int list) :
+  let build_ilist (parse : int array) (parseSA : int array) :
       (int, int list) Hashtbl.t =
     let inv_list = Hashtbl.create (module Int) in
-    List.length parseSA :: parseSA
-    |> List.filter ~f:(fun x -> x <> 0)
-    |> List.iteri ~f:(fun i p ->
+    parseSA
+    |> Array.filter ~f:(fun x -> x <> 0)
+    |> Array.iteri ~f:(fun i p ->
            match p with
            | 0 -> ()
            | idx ->
@@ -126,14 +135,15 @@ end) : PFP_S = struct
     printf "Inverted list (BWT(P)) computed\n%!";
     inv_list
 
-  let build_bwtlast (w : int) (phrases : string array) (parseSA : int list)
+  let build_bwtlast (w : int) (phrases : string array) (parseSA : int array)
       (parse : int array) : string =
     let w_array =
       parseSA
-      |> List.map ~f:(fun i ->
+      |> Array.filter_mapi ~f:(fun idx i ->
+            if idx = 0 then None else 
              let cur_phrase = Array.get phrases (wrap_get parse (i - 2)) in
-             String.get cur_phrase (String.length cur_phrase - w - 1))
-      |> String.of_char_list
+            Some (String.get cur_phrase (String.length cur_phrase - w - 1)))
+      |> String.of_array
     in
     let () = printf "W array computed\n%!" in
     w_array
@@ -145,7 +155,8 @@ end) : PFP_S = struct
     let phrases = Array.of_list phrases in
     let phrase_lengths = phrases |> Array.map ~f:String.length in
     let parse = parse |> IntSequence.of_list in
-    let parseSA = parse |> IntBWT.getSA in
+    let parseSA = parse |> Sais.SAIS.getSA_int in
+    printf "Parse suffix array computed\n%!";
     let bwtlast = build_bwtlast w phrases parseSA parse in
     let inv_list = build_ilist parse parseSA in
     (* let phrase_starts = phrases
@@ -199,7 +210,7 @@ end) : PFP_S = struct
       |> Map.of_alist_multi (module String)
       |> Map.data |> List.concat
     in *)
-    let () = printf "number of phrases: %d\n%!" (Array.length phrases) in
+    let () = printf "length of concatenated dict = %d\n%!" (String.length dict_concat) in
     let () = Out_channel.write_all "/Users/vikram/Documents/jhu/third_year/fpse/fpse-project/dict_concat.txt" ~data:dict_concat in
     (* use the SAIS SA construction *)
     let d_SA =
