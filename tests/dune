@@ -1,11 +1,4 @@
-(test
- (name test_fasta)
- (modules test_fasta)
- (libraries core ounit2 fasta)
- (deps
-  (glob_files_rec ./fasta.test)))
-
-(test
- (name test_bigbwt)
- (modules test_bigbwt)
- (libraries core ounit2 BigBWT))
+(tests
+ (names tests)
+ (libraries core ounit2 BigBWT)
+ (preprocess (pps ppx_jane)))

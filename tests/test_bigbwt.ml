@@ -7,25 +7,25 @@ open OUnit2
 open BigBWT.Pfp
 
 module TestHash = struct
-  let is_trigger_string s = List.mem [ "AC"; "AG"; "T!"; "$$" ] s ~equal:String.( = )
+  let is_trigger_string s =
+    List.mem [ "AC"; "AG"; "T+"; "$$" ] s ~equal:String.( = )
 end
 
 module Parser = PFP (TestHash)
 
-let paper_T = "GATTACAT!GATACAT!GATTAGATA"
-
-let paper_D =
-  [
-    ("$GATTAC", 1); ("ACAT!", 2); ("AGATA$$", 1); ("T!GATAC", 1); ("T!GATTAG", 1);
-  ]
-
+let paper_T = "GATTACAT+GATACAT+GATTAGATA"
+let paper_D = [ "$GATTAC"; "ACAT+"; "AGATA$$"; "T+GATAC"; "T+GATTAG" ]
 let paper_parse = [ 0; 1; 3; 1; 4; 2 ]
+let occ = [ 1; 2; 1; 1; 1 ]
 
-let dict, parse =
-  let d, p = Parser.parse paper_T 2 in
-  (Parser.dict_to_alist d, p)
+let test_window _ =
+  assert_equal (Parser.parse paper_T 2) (paper_D, occ, paper_parse)
 
-let test_window _ = assert_equal (dict, parse) (paper_D, paper_parse)
-let tests = "tests" >::: [ "paper test" >:: test_window ]
+let test_paper_bwt _ =
+  assert_equal (Parser.getBWT paper_T 2) "ATTTTTTCCGGGGAAA+$+AAATATAA"
+
+let tests =
+  "tests" >::: [ "paper test" >:: test_window; "paper bwt" >:: test_paper_bwt ]
+
 let series = "Project Tests" >::: [ tests ]
 let () = run_test_tt_main series

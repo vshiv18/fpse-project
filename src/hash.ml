@@ -48,3 +48,5 @@ module MakeRollHash (P : Params) : S = struct
 
   let is_trigger_string (str : string) = Int.( = ) 0 @@ hash str
 end
+
+module DefaultHasher = MakeRollHash (Default)
