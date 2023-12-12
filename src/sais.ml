@@ -222,5 +222,8 @@ module SAIS = struct
     CharSAIS.merge sais_t text_arr sorted_summary summary_idx
 
   let getBWT (text : string) : string =
-    text |> getSA |> Array.map ~f:(fun idx -> if idx = 0 then '$' else String.get text (idx - 1)) |> String.of_array
+    text |> getSA
+    |> Array.map ~f:(fun idx ->
+           if idx = 0 then '$' else String.get text (idx - 1))
+    |> String.of_array
 end
