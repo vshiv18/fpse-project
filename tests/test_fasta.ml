@@ -4,7 +4,7 @@ open Fasta
 
 let test_small_chunk _ =
   let module Config : FASTAStreamerConfig = struct
-    let filename = "./fasta.test"
+    let filename = "./data/fasta.test"
     let chunk_size = 10
   end in
   let module Streamer = FASTAStreamer (Config) in
