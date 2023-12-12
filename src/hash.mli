@@ -13,6 +13,7 @@ end
 module type Params = sig
   val b : int
   val p : int
+  val modulus : int
 end
 
 module Default : Params
