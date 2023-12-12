@@ -177,14 +177,14 @@ end) : PFP_S = struct
     (* replace below with SAIS method later *)
 
     (* this slots into the SA construction nicely, but SLOW *)
-    (* let d_SA =
+    let d_SA =
          dict_concat |> StringBWT.getSA
          |> List.filter_map ~f:(fun suffix_pos ->
                 let len, phrase_id = Array.get filter_pos suffix_pos in
                 if len <= w then None else Some (len, phrase_id))
-       in *)
+       in
     (* this is the old method (using Map sort on suffix slices), much faster. but not scalable? *)
-    let d_SA =
+    (* let d_SA =
       Array.filter_map filter_pos ~f:(fun (len, phrase_id) ->
           if len <= w then None
           else
@@ -197,7 +197,7 @@ end) : PFP_S = struct
       |> List.of_array
       |> Map.of_alist_multi (module String)
       |> Map.data |> List.concat
-    in
+    in *)
 
     let () = printf "computed SA of dict\n%!" in
     (* fold, accumulator is (current output BWT, is buffer a dict phrase,
