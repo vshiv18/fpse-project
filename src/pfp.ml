@@ -120,7 +120,7 @@ end) : PFP_S = struct
 
   (* let wrap_get string i = String.get string (i % String.length string) *)
 
-  let build_ilist (parse : int array) (parseSA : int array) :
+  let build_ilist (parse : int array) (parseSA : int array):
       (int, int list) Hashtbl.t =
     let inv_list = Hashtbl.create (module Int) in
     parseSA
@@ -134,6 +134,26 @@ end) : PFP_S = struct
     Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:Int.compare);
     printf "Inverted list (BWT(P)) computed\n%!";
     inv_list
+  let build_ilist_sa_aux (parse : int array) (parseSA : int array) (phrases : string array):
+  (int, int list) Hashtbl.t * (int, int list) Hashtbl.t=
+    let offsets = parse 
+    |> Array.map ~f:(fun i -> String.length (Array.get phrases i)) 
+    |> Array.folding_map ~init:0 ~f:(fun acc len ->(acc + len, acc + len - 1)) in
+    let inv_list = Hashtbl.create (module Int) in
+    parseSA
+    |> Array.filter ~f:(fun x -> x <> 0)
+    |> Array.iteri ~f:(fun i p ->
+          match p with
+          | 0 -> ()
+          | idx ->
+              let p = IntSequence.get parse (idx - 1) in
+              let s = Array.get offsets (idx - 1) in
+              Hashtbl.add_multi inv_list ~key:p ~data:(i, s));
+    Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:(fun (i1, _) (i2, _) -> Int.compare i1 i2));
+    let sa_aux = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (_, offset) -> offset)) in
+    let inv_list = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (bwtpos, _) -> bwtpos)) in
+    printf "Inverted list (BWT(P)) computed\n%!";
+    inv_list, sa_aux
 
   let build_bwtlast (w : int) (phrases : string array) (parseSA : int array)
       (parse : int array) : string =
