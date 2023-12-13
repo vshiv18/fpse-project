@@ -62,12 +62,17 @@ let test_gsacak_bwt _ =
   assert_equal (small |> GsacakBWT.getBWT) small_BWT;
   assert_equal (seq |> GsacakBWT.getBWT) seq_BWT
 
+(* let test_gsacak_sa _ =
+  assert_equal ([|1; 2; 2; 1; 2; 2|] |> GsacakBWT.getSA_int |> List.of_array) [6; 3; 0; 5; 4; 2; 1];
+  assert_equal ([|2; 2; 2; 2|] |> GsacakBWT.getSA_int |> List.of_array) [4; 3; 2; 1; 0] *)
+
 let bwt_tests =
   "bwt_tests" >::: [ 
     "naive bwt" >:: test_naive_bwt;
     "sais bwt" >:: test_sais_bwt;
     "pfp bwt" >:: test_pfp_bwt;
     "gsacak bwt" >:: test_gsacak_bwt ]
+    (* "gsacak sa" >:: test_gsacak_sa ] *)
 
 let series = "Project Tests" >::: [ 
   pfp_tests;
