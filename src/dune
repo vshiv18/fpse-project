@@ -6,6 +6,13 @@
   (pps ppx_jane)))
 
 (library
+ (name fasta)
+ (modules fasta)
+ (libraries core)
+ (preprocess
+  (pps ppx_jane bisect_ppx)))
+
+(library
  (name RollHash)
  (modules hash)
  (libraries core)
@@ -16,20 +23,13 @@
  (name BigBWT)
  (modules naive_bwt pfp fm_index)
  (modules_without_implementation fm_index)
- (libraries core RollHash serialize)
+ (libraries core RollHash serialize fasta)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane bisect_ppx)))
 
 (executable
  (name bwt)
  (modules bwt)
- (libraries
-  core
-  core_unix.sys_unix
-  core_unix.command_unix
-  stdio
-  BigBWT
-  RollHash
-  serialize)
+ (libraries core core_unix.sys_unix core_unix.command_unix stdio BigBWT)
  (preprocess
   (pps ppx_jane)))

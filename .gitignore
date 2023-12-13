@@ -29,3 +29,5 @@ setup.log
 _opam/
 
 out
+*.coverage
+chm13_chr19.fa

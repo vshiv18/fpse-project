@@ -1,35 +1,28 @@
 open Core
 open Naive_bwt
 open Serialize
+open Fasta
 
-module type PFP_S = sig
+module type S = sig
   type text = string
   type dict
   type parse = string list * int list * int list
 
-  val parse : ?verbose:bool -> text -> int -> parse
-  val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
+  val initialize_streamer : ?chunk_size:int -> string -> Fasta.FASTAStreamer.t
+  val trigger : string -> int -> FASTAStreamer.t -> bool -> text * text * bool
+  val hash : string -> int -> int list * dict
+  val parse : string -> int -> parse
+  val buildText : string -> text
   val parse_to_BWT : parse -> int -> string
   val getBWT : text -> int -> string
   val save_parse : parse -> string -> unit
   val load_parse : string -> parse
 end
 
-(* let repeat c k =
-   String.of_char_list
-     (List.fold (List.range 0 k) ~init:[] ~f:(fun acc _ -> c :: acc)) *)
-let repeat c k = String.init k ~f:(fun _ -> c)
-
-let fill s c len =
-  String.concat
-    [ s; repeat c (if len > String.length s then len - String.length s else 0) ]
-
-(* let repeat_list c k = List.init k ~f:(fun _ -> c) *)
-
 module PFP (Hash : sig
   val is_trigger_string : string -> bool
-end) : PFP_S = struct
+end) : S = struct
   type text = string
 
   module Dict = Hashtbl.Make (String)
@@ -41,70 +34,97 @@ end) : PFP_S = struct
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
-  (* rewrite to use indexes instead of passing in new text copies, esp no Stirng.drop_prefix *)
-  (* now the helper takes in
-     start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
-  let parse ?(verbose = false) (text : text) (w : int) : parse =
-    let terminator = repeat '$' w in
-    let dict_count = Hashtbl.create (module String) in
-    (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
-    let rec helper (pos : int) (parse : int list)
-        ((phrase_start, phrase_end) : int * int) : int list =
-      let () =
-        if verbose then
-          if pos % (String.length text / 100) = 0 then
-            printf "%d/100 done\n%!" (pos / (String.length text / 100))
-      in
-      if pos > String.length text then parse
+  let dict_to_alist (dict : dict) : (string * int) list =
+    Hashtbl.to_alist dict
+    |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)
+
+  let initialize_streamer ?(chunk_size = 100) (filename : string) :
+      FASTAStreamer.t =
+    FASTAStreamer.create ~chunk_size filename
+
+  let finished (phrase : string) (chunk : string) (is_last_chunk : bool) : bool
+      =
+    String.is_empty phrase && String.is_empty chunk && is_last_chunk
+
+  let sorted_phrases (dict_count : dict) : text list =
+    dict_count |> Hashtbl.keys |> List.sort ~compare:String.compare
+
+  let sorted_hashmap (phrases : text list) : (int, int) Dict.hashtbl =
+    phrases
+    |> List.mapi ~f:(fun idx phrase -> (Hashtbl.hash phrase, idx))
+    |> Hashtbl.of_alist_exn (module Int)
+
+  let sorted_parse (phrases : text list) (hash : int list) : int list =
+    let sorted_hashmap = sorted_hashmap phrases in
+    List.map ~f:(fun h -> Hashtbl.find_exn sorted_hashmap h) hash
+
+  let sorted_freqs (phrases : text list) (dict_count : dict) : int list =
+    phrases |> List.map ~f:(fun p -> Hashtbl.find_exn dict_count p)
+
+  let trigger (chunk : string) (window : int) (streamer : FASTAStreamer.t)
+      (is_last_chunk : bool) : text * text * bool =
+    if String.length chunk < window then
+      if is_last_chunk then
+        (String.pad_right ~char:'$' chunk ~len:window, chunk, is_last_chunk)
       else
-        let cur_trigger =
-          if pos + w > String.length text then
-            fill (String.slice text pos 0) '$' w
-          else String.slice text pos (pos + w)
+        match FASTAStreamer.next streamer with
+        | Continue next_chunk ->
+            let chunk = chunk ^ next_chunk in
+            (String.prefix chunk window, chunk, false)
+        | Stop next_chunk ->
+            let chunk = chunk ^ next_chunk in
+            (String.prefix chunk window, chunk, true)
+    else (String.prefix chunk window, chunk, is_last_chunk)
+
+  let hash (filename : string) (window : int) : int list * dict =
+    let streamer = initialize_streamer filename in
+    let terminator = String.pad_right ~char:'$' "" ~len:window in
+    let dict_count = Hashtbl.create (module String) in
+    let rec f (phrase : string) (chunk : string) (is_last_chunk : bool)
+        (parse : int list) : int list =
+      if finished phrase chunk is_last_chunk then parse
+      else
+        let trigger, chunk, is_last_chunk =
+          trigger chunk window streamer is_last_chunk
         in
         match
-          String.( = ) cur_trigger terminator
-          || Hash.is_trigger_string cur_trigger
+          String.( = ) trigger terminator || Hash.is_trigger_string trigger
         with
-        | false -> helper (pos + 1) parse (phrase_start, phrase_end + 1)
+        | false ->
+            f
+              (phrase ^ String.prefix chunk 1)
+              (String.drop_prefix chunk 1)
+              is_last_chunk parse
         | true ->
-            let final_phrase =
-              let final_phrase =
-                if phrase_end + w > String.length text then
-                  String.slice text phrase_start 0 ^ terminator
-                else String.slice text phrase_start (phrase_end + w)
-              in
-              if phrase_start = 0 then "$" ^ final_phrase else final_phrase
-            in
-            let () = Hashtbl.incr dict_count final_phrase in
-            helper (pos + 1) (Hashtbl.hash final_phrase :: parse) (pos, pos + 1)
+            let final_phrase = phrase ^ trigger in
+            Hashtbl.incr dict_count final_phrase;
+            f (String.prefix chunk 1)
+              (String.drop_prefix chunk 1)
+              is_last_chunk
+              (Hashtbl.hash final_phrase :: parse)
     in
-    let parse = List.rev (helper 0 [] (0, 0)) in
-    let phrases =
-      dict_count |> Hashtbl.keys |> List.sort ~compare:String.compare
-    in
-    let parse =
-      let sorted_parsemap =
-        phrases
-        |> List.mapi ~f:(fun idx phrase -> (Hashtbl.hash phrase, idx))
-        |> Hashtbl.of_alist_exn (module Int)
-      in
-      List.map
-        ~f:(fun placeholder -> Hashtbl.find_exn sorted_parsemap placeholder)
-        parse
-    in
-    let freqs =
-      phrases |> List.map ~f:(fun p -> Hashtbl.find_exn dict_count p)
-    in
+    ( List.rev
+        (match FASTAStreamer.next streamer with
+        | Continue first_chunk ->
+            f
+              (String.prefix first_chunk 1)
+              (String.drop_prefix first_chunk 1)
+              false []
+        | Stop first_chunk ->
+            f
+              (String.prefix first_chunk 1)
+              (String.drop_prefix first_chunk 1)
+              true []),
+      dict_count )
 
+  let parse (filename : string) (window : int) : parse =
+    let hash, dict_count = hash filename window in
+    let phrases = sorted_phrases dict_count in
+    let parse = sorted_parse phrases hash in
+    let freqs = sorted_freqs phrases dict_count in
     (phrases, freqs, parse)
-  (* for testing *)
 
   let buildText (text : string) : text = text
-
-  let dict_to_alist (dict : dict) : (string * int) list =
-    dict |> Hashtbl.to_alist
-    |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)
 
   (* let wrap_nth_exn list i = List.nth_exn list (i % List.length list) *)
   let wrap_get list i = IntSequence.get list (i % IntSequence.length list)

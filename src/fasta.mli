@@ -4,13 +4,16 @@ module Chunk : sig
   val value : 'a chunk -> 'a
 end
 
-module type FASTAStreamerConfig = sig
-  val filename : string
-  val chunk_size : int
-end
-
 module type S = sig
-  val next : unit -> string chunk
+  type t = {
+    channel : In_channel.t;
+    buffer : Buffer.t;
+    chunk_size : int;
+    mutable char_in_sequence : bool;
+  }
+
+  val create : ?chunk_size:int -> string -> t
+  val next : t -> string chunk
 end
 
-module FASTAStreamer (_ : FASTAStreamerConfig) : S
+module FASTAStreamer : S
