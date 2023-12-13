@@ -7,6 +7,7 @@ let get_do_mode (input_fname : string option) (parse_dir : string option) =
   match (input_fname, parse_dir) with
   | Some target, None -> Parse target
   | Some _, Some parse_dir -> printf "Overwriting parse_dir in %s\n" parse_dir; BWT parse_dir
+  | None , Some parse_dir -> BWT parse_dir
   | _ -> None "Exactly one of -i input_file or --parse_dir needs to be set"
 
 let prepare_parse_dir (out_dir : string) : string =
@@ -60,7 +61,7 @@ let command =
   Command.basic ~summary:"OCaml BigBWT"
     ~readme:(fun () -> "More detailed information")
     (let%map_open.Command input_fname =
-       flag "-i" (required string)
+       flag "-i" (optional string)
          ~doc:"string Path to file to compute parse of."
      and parse_dir =
        flag "--from-parse" (optional string)
@@ -72,6 +73,6 @@ let command =
          (optional_with_default "./" string)
          ~doc:"string Path to store parse results."
      in
-     fun () -> do_run (Some input_fname) parse_dir window out_dir)
+     fun () -> do_run input_fname parse_dir window out_dir)
 
 let () = Command_unix.run ~version:"1.0" ~build_info:"RWO" command

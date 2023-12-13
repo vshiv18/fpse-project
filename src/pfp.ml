@@ -54,7 +54,8 @@ end) : PFP_S = struct
   (* now the helper takes in
      start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
   let parse ?(verbose = false) (text : text) (w : int): parse =
-    let terminator = repeat '\x01' w in
+    let sep = '$' in
+    let terminator = repeat sep w in
     let dict_count = Hashtbl.create (module String) in
     (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
     let rec helper (pos : int) (parse : int list)
@@ -69,7 +70,7 @@ end) : PFP_S = struct
       else
         let cur_trigger =
           if pos + w > String.length text then
-            fill (String.slice text pos 0) '\x01' w
+            fill (String.slice text pos 0) sep w
           else String.slice text pos (pos + w)
         in
         match
@@ -84,7 +85,7 @@ end) : PFP_S = struct
                   String.slice text phrase_start 0 ^ terminator
                 else String.slice text phrase_start (phrase_end + w)
               in
-              if phrase_start = 0 then "\x01" ^ final_phrase else final_phrase
+              if phrase_start = 0 then (String.of_char sep) ^ final_phrase else final_phrase
             in
             let idx = update_dict dict_count final_phrase in
             helper (pos + 1) (idx :: parse) (pos, pos + 1) phrase_count
@@ -176,7 +177,7 @@ end) : PFP_S = struct
     let phrases = Array.of_list phrases in
     let phrase_lengths = phrases |> Array.map ~f:String.length in
     let parse = parse |> IntSequence.of_list in
-    let parseSA = parse |> Gsacak.GSACAK.getSA_int in
+    let parseSA = parse |> Array.map ~f:(fun x -> x + 1) |> Gsacak.GSACAK.getSA_int in
     printf "Parse suffix array computed\n%!";
     let bwtlast = build_bwtlast w phrases parseSA parse in
     let inv_list = build_ilist_sa_aux parse parseSA phrase_lengths w in
@@ -187,19 +188,21 @@ end) : PFP_S = struct
        in *)
     (* TODO: temp, throw "bad positions" in a set and filter that way *)
     (* alternatively, get bool array of good/bad positions to filter *)
-    let dict_concat = phrases |> String.concat_array ~sep:"\x01" in
+    let sep = '!' in
+    let dict_concat = phrases |> String.concat_array ~sep:(String.of_char sep) in
     let total_len = String.length dict_concat in
+    let dict_concat = dict_concat ^ "\x00" in
     let _, filter_pos =
       List.fold
         (List.range ~stride:(-1) (total_len - 1) (-1))
         ~init:(total_len, [])
         ~f:(fun (last_delim, lens) idx ->
-          if Char.( = ) (String.get dict_concat idx) '\x01' then (idx, 0 :: lens)
+          if Char.( = ) (String.get dict_concat idx) sep then (idx, 0 :: lens)
           else (last_delim, (last_delim - idx) :: lens))
     in
     let filter_pos =
       List.folding_mapi filter_pos ~init:0 ~f:(fun i phrase_count length ->
-          if Char.( = ) (String.get dict_concat i) '\x01' then
+          if Char.( = ) (String.get dict_concat i) sep then
             (phrase_count + 1, (length, phrase_count))
           else (phrase_count, (length, phrase_count)))
       |> Array.of_list
@@ -231,8 +234,8 @@ end) : PFP_S = struct
       |> Map.of_alist_multi (module String)
       |> Map.data |> List.concat
     in *)
-    (* let () = printf "length of concatenated dict = %d\n%!" (String.length dict_concat) in
-    let () = Out_channel.write_all "dict_concat.txt" ~data:dict_concat in *)
+    (* let () = printf "length of concatenated dict = %d\n%!" (String.length dict_concat) in *)
+    let () = Out_channel.write_all "dict_concat.txt" ~data:dict_concat in
     (* use the SAIS SA construction *)
     let d_SA =
       dict_concat |> Gsacak.GSACAK.getSA
