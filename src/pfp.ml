@@ -283,6 +283,8 @@ end) : PFP_S = struct
           |> List.unzip
         in
         (* read off prev chars in order of ilist positions *)
+        printf "%s\n" prev_alpha;
+        printf "%s\n" (merged_ilist_chars |> List.map ~f:String.of_char |> String.concat ~sep:", ");
         List.fold merged_ilist_chars ~init:bwt ~f:(fun seq c -> c :: seq), 
         List.fold offsets ~init:sa ~f:(fun seq p -> (p - alpha_len) :: seq)
         (* [] TODO *)
