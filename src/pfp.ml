@@ -230,8 +230,8 @@ end) : PFP_S = struct
       |> Map.of_alist_multi (module String)
       |> Map.data |> List.concat
     in *)
-    let () = printf "length of concatenated dict = %d\n%!" (String.length dict_concat) in
-    let () = Out_channel.write_all "dict_concat.txt" ~data:dict_concat in
+    (* let () = printf "length of concatenated dict = %d\n%!" (String.length dict_concat) in
+    let () = Out_channel.write_all "dict_concat.txt" ~data:dict_concat in *)
     (* use the SAIS SA construction *)
     let d_SA =
       dict_concat |> Sais.SAIS.getSA
