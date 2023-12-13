@@ -41,15 +41,15 @@
  (preprocess
   (pps ppx_jane)))
 
-; (executable
-;  (name getsa)
-;  (modules getsa)
-;  (libraries
-;   core
-;   core_unix.sys_unix
-;   core_unix.command_unix
-;   stdio
-;   BigBWT
-;   )
-;  (preprocess
-;   (pps ppx_jane)))
+(executable
+ (name getsa)
+ (modules getsa)
+ (libraries
+  core
+  core_unix.sys_unix
+  core_unix.command_unix
+  stdio
+  BigBWT
+  )
+ (preprocess
+  (pps ppx_jane)))

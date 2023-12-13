@@ -10,8 +10,9 @@ module type PFP_S = sig
   val parse : ?verbose:bool -> text -> int -> parse
   val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
-  val parse_to_BWT : parse -> int -> string
+  val parse_to_BWT : parse -> int -> string * (int list)
   val getBWT : text -> int -> string
+  val getBWT_SA : text -> int -> string * (int list)
   val save_parse : parse -> string -> unit
   val load_parse : string -> parse
 end
@@ -120,7 +121,7 @@ end) : PFP_S = struct
 
   (* let wrap_get string i = String.get string (i % String.length string) *)
 
-  let build_ilist (parse : int array) (parseSA : int array):
+  (* let build_ilist (parse : int array) (parseSA : int array):
       (int, int list) Hashtbl.t =
     let inv_list = Hashtbl.create (module Int) in
     parseSA
@@ -133,12 +134,13 @@ end) : PFP_S = struct
                Hashtbl.add_multi inv_list ~key:p ~data:i);
     Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:Int.compare);
     printf "Inverted list (BWT(P)) computed\n%!";
-    inv_list
-  let build_ilist_sa_aux (parse : int array) (parseSA : int array) (phrases : string array):
-  (int, int list) Hashtbl.t * (int, int list) Hashtbl.t=
+    inv_list *)
+  let build_ilist_sa_aux (parse : int array) (parseSA : int array) (phrase_lengths : int array) (w : int):
+  (int, (int * int) list) Hashtbl.t =
     let offsets = parse 
-    |> Array.map ~f:(fun i -> String.length (Array.get phrases i)) 
+    |> Array.map ~f:(fun i -> if i = 0 then (Array.get phrase_lengths i) else (Array.get phrase_lengths i) - w)
     |> Array.folding_map ~init:0 ~f:(fun acc len ->(acc + len, acc + len - 1)) in
+    printf "%s\n%!" (offsets |> Array.to_list |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
     let inv_list = Hashtbl.create (module Int) in
     parseSA
     |> Array.filter ~f:(fun x -> x <> 0)
@@ -150,10 +152,10 @@ end) : PFP_S = struct
               let s = Array.get offsets (idx - 1) in
               Hashtbl.add_multi inv_list ~key:p ~data:(i, s));
     Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:(fun (i1, _) (i2, _) -> Int.compare i1 i2));
-    let sa_aux = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (_, offset) -> offset)) in
-    let inv_list = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (bwtpos, _) -> bwtpos)) in
+    (* let sa_aux = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (_, offset) -> offset)) in
+    let inv_list = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (bwtpos, _) -> bwtpos)) in *)
     printf "Inverted list (BWT(P)) computed\n%!";
-    inv_list, sa_aux
+    inv_list
 
   let build_bwtlast (w : int) (phrases : string array) (parseSA : int array)
       (parse : int array) : string =
@@ -169,7 +171,7 @@ end) : PFP_S = struct
     w_array
 
   (* TODO: *)
-  let parse_to_BWT (parse : parse) (w : int) : text =
+  let parse_to_BWT (parse : parse) (w : int) : text * (int list) =
     let phrases, _, parse = parse in
     (* let freqs = Array.of_list freqs in *)
     let phrases = Array.of_list phrases in
@@ -178,7 +180,7 @@ end) : PFP_S = struct
     let parseSA = parse |> Sais.SAIS.getSA_int in
     printf "Parse suffix array computed\n%!";
     let bwtlast = build_bwtlast w phrases parseSA parse in
-    let inv_list = build_ilist parse parseSA in
+    let inv_list = build_ilist_sa_aux parse parseSA phrase_lengths w in
     (* let phrase_starts = phrases
          |> Array.folding_map ~init:(-1) ~f:(fun acc phrase ->
            (acc + (String.length phrase) + 1, acc + 1)
@@ -245,48 +247,57 @@ end) : PFP_S = struct
     let () = printf "computed SA of dict\n%!" in
     (* fold, accumulator is (current output BWT, is buffer a dict phrase,
                             current representative phrase suffix, list of phrases that it occurs in) *)
-    let process_phrase bwt phrase_id =
-      let occs = Hashtbl.find_exn inv_list phrase_id in
-      List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq)
+    let process_phrase bwt sa phrase_id =
+       (* if this is a phrase, get prev chars from BWTlast, in order of ilist (already sorted) *)
+      let occs_sa = Hashtbl.find_exn inv_list phrase_id in
+      let occs, offsets = List.unzip occs_sa in
+      printf "%s\n%!" (Array.get phrases phrase_id);
+      printf "%s\n%!" (offsets |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
+      
+      List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq), 
+      List.fold offsets ~init:sa ~f:(fun seq p -> let () = printf "%d\n%!" (p - (Array.get phrase_lengths phrase_id)) in (p - (Array.get phrase_lengths phrase_id)) :: seq)
+      (* [] TODO *)
     in
 
     let process_alpha
-        ((bwt, prev_alpha, prev_phrases) : char list * string * int list) :
-        char list =
-      if String.length prev_alpha = 0 then bwt
+        (bwt : char list) (sa : int list) (prev_alpha : string) (prev_phrases : int list) :
+        char list * int list =
+      let alpha_len = String.length prev_alpha in
+      if alpha_len = 0 then bwt, sa (* TODO *)
       else
-        (* if this is a phrase, get prev chars from BWTlast, in order of ilist (already sorted) *)
         (* collect prev char of suffix from each phrase it appears in *)
         let prev_chars =
-          let offset = String.length prev_alpha in
           List.map prev_phrases ~f:(fun phrase_id ->
               let phrase = Array.get phrases phrase_id in
-              String.get phrase (String.length phrase - offset - 1))
+              String.get phrase (String.length phrase - alpha_len - 1))
         in
         (* merge ilists from each phrase (remembering prev char for each phrase) *)
-        let merged_ilist =
+        let offsets, merged_ilist_chars =
           prev_phrases |> List.zip_exn prev_chars
           |> List.map ~f:(fun (c, x) ->
                  Hashtbl.find_exn inv_list x |> List.map ~f:(fun p -> (p, c)))
           |> List.fold ~init:[] ~f:(fun acc l ->
-                 List.merge acc l ~compare:(fun (x1, _) (x2, _) ->
+                 List.merge acc l ~compare:(fun ((x1, _), _) ((x2, _), _) ->
                      Int.compare x1 x2))
+          |> List.map ~f:(fun ((_, offset), c) -> (offset, c))
+          |> List.unzip
         in
-
+        printf "%s\n%!" prev_alpha;
+        printf "%s\n%!" (offsets |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
         (* read off prev chars in order of ilist positions *)
-        List.fold merged_ilist ~init:bwt ~f:(fun seq (_, c) -> c :: seq)
+        List.fold merged_ilist_chars ~init:bwt ~f:(fun seq c -> c :: seq), 
+        List.fold offsets ~init:sa ~f:(fun seq p -> let () = printf "%d\n%!" (p - alpha_len) in (p - alpha_len) :: seq)
+        (* [] TODO *)
     in
     (* fold through SA of dict *)
-    let bwt, prev_alpha, prev_phrases =
-      List.fold d_SA ~init:([], "", [])
-        ~f:(fun (bwt, prev_alpha, prev_phrases) (len, phrase_id) ->
-          (* If suffix is a phrase from the dict, then process the buffer and set is_phrase = true to use BWTlast next iteration *)
+    let bwt, sa, prev_alpha, prev_phrases =
+      List.fold d_SA ~init:([], [], "", [])
+        ~f:(fun (bwt, sa, prev_alpha, prev_phrases) (len, phrase_id) ->
+          (* If suffix is a phrase from the dict, then process the buffer and immediately process phrase before iterating *)
           if len = Array.get phrase_lengths phrase_id then
-            ( process_phrase
-                (process_alpha (bwt, prev_alpha, prev_phrases))
-                phrase_id,
-              "",
-              [] )
+            let bwt, sa = process_alpha bwt sa prev_alpha prev_phrases in
+            let bwt, sa = process_phrase bwt sa phrase_id in
+            ( bwt, sa, "", [] )
           else
             (* Check if we are in the same "alpha" range *)
             let cur_suffix =
@@ -298,19 +309,25 @@ end) : PFP_S = struct
             (* if so, add phrase id to buffer *)
             if
               String.length prev_alpha = 0 || String.( = ) cur_suffix prev_alpha
-            then (bwt, cur_suffix, phrase_id :: prev_phrases)
+            then (bwt, sa, cur_suffix, phrase_id :: prev_phrases)
             else
               (* otherwise process buffer and start new alpha range *)
-              ( process_alpha (bwt, prev_alpha, prev_phrases),
-                cur_suffix,
-                [ phrase_id ] ))
+              let bwt, sa = process_alpha bwt sa prev_alpha prev_phrases in
+              ( bwt, sa, cur_suffix, [ phrase_id ] ))
     in
-    process_alpha (bwt, prev_alpha, prev_phrases)
+    let bwt, sa = process_alpha bwt sa prev_alpha prev_phrases in
+    (bwt
     (* we get the reverse BWT as a list of chars, post-processing *)
     |> String.of_char_list
-    |> String.rev
+    |> String.rev),
+    (List.length bwt) - 1 :: (sa |> List.tl_exn|> List.rev |> List.tl_exn)
 
   let getBWT input_string w =
+    let p = parse input_string w in
+    let bwt, _ = parse_to_BWT p w in
+    bwt
+  
+  let getBWT_SA input_string w =
     let p = parse input_string w in
     parse_to_BWT p w
 

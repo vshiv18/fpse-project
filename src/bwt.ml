@@ -30,10 +30,14 @@ let do_parse (target : string) (window : int) (out_dir : string) : unit =
 let do_bwt (parse_dir : string) (window : int) : unit =
   let parse = Parser.load_parse parse_dir in
   printf "Loaded parse from %s\n" parse_dir;
-  let bwt = Parser.parse_to_BWT parse window in
+  let bwt, sa = Parser.parse_to_BWT parse window in
   printf "BWT computed (showing first 100 characters)\n%s...\n"
     (String.slice bwt 0 100);
-  Out_channel.write_all (Filename.concat parse_dir "bwt") ~data:bwt
+  printf "SA computed (showing first 100 / %d entries)\n%s...\n" (List.length sa)
+    ((List.take sa 100) |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
+  printf "%d\n" (List.length sa);
+  Out_channel.write_all (Filename.concat parse_dir "bwt") ~data:bwt;
+  Out_channel.write_all (Filename.concat parse_dir "sa") ~data:(sa |> List.to_string ~f:Int.to_string)
 
 let do_run (parse_target : string option) (parse_dir : string option)
     (window : int) (out_dir : string) : unit =
