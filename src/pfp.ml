@@ -140,7 +140,6 @@ end) : PFP_S = struct
     let offsets = parse 
     |> Array.map ~f:(fun i -> if i = 0 then (Array.get phrase_lengths i) else (Array.get phrase_lengths i) - w)
     |> Array.folding_map ~init:0 ~f:(fun acc len ->(acc + len, acc + len - 1)) in
-    printf "%s\n%!" (offsets |> Array.to_list |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
     let inv_list = Hashtbl.create (module Int) in
     parseSA
     |> Array.filter ~f:(fun x -> x <> 0)
@@ -177,7 +176,7 @@ end) : PFP_S = struct
     let phrases = Array.of_list phrases in
     let phrase_lengths = phrases |> Array.map ~f:String.length in
     let parse = parse |> IntSequence.of_list in
-    let parseSA = parse |> Sais.SAIS.getSA_int in
+    let parseSA = parse |> Gsacak.GSACAK.getSA_int in
     printf "Parse suffix array computed\n%!";
     let bwtlast = build_bwtlast w phrases parseSA parse in
     let inv_list = build_ilist_sa_aux parse parseSA phrase_lengths w in
@@ -236,7 +235,7 @@ end) : PFP_S = struct
     let () = Out_channel.write_all "dict_concat.txt" ~data:dict_concat in *)
     (* use the SAIS SA construction *)
     let d_SA =
-      dict_concat |> Sais.SAIS.getSA
+      dict_concat |> Gsacak.GSACAK.getSA
       |> List.of_array
       |> List.filter_map ~f:(fun suffix_pos ->
             if suffix_pos = (String.length dict_concat) then None else 
@@ -251,11 +250,9 @@ end) : PFP_S = struct
        (* if this is a phrase, get prev chars from BWTlast, in order of ilist (already sorted) *)
       let occs_sa = Hashtbl.find_exn inv_list phrase_id in
       let occs, offsets = List.unzip occs_sa in
-      printf "%s\n%!" (Array.get phrases phrase_id);
-      printf "%s\n%!" (offsets |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
       
       List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq), 
-      List.fold offsets ~init:sa ~f:(fun seq p -> let () = printf "%d\n%!" (p - (Array.get phrase_lengths phrase_id)) in (p - (Array.get phrase_lengths phrase_id)) :: seq)
+      List.fold offsets ~init:sa ~f:(fun seq p -> (p - (Array.get phrase_lengths phrase_id)) :: seq)
       (* [] TODO *)
     in
 
@@ -282,11 +279,9 @@ end) : PFP_S = struct
           |> List.map ~f:(fun ((_, offset), c) -> (offset, c))
           |> List.unzip
         in
-        printf "%s\n%!" prev_alpha;
-        printf "%s\n%!" (offsets |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
         (* read off prev chars in order of ilist positions *)
         List.fold merged_ilist_chars ~init:bwt ~f:(fun seq c -> c :: seq), 
-        List.fold offsets ~init:sa ~f:(fun seq p -> let () = printf "%d\n%!" (p - alpha_len) in (p - alpha_len) :: seq)
+        List.fold offsets ~init:sa ~f:(fun seq p -> (p - alpha_len) :: seq)
         (* [] TODO *)
     in
     (* fold through SA of dict *)
