@@ -53,9 +53,10 @@ end) : PFP_S = struct
   (* now the helper takes in
      start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
   let parse ?(verbose = false) (text : text) (w : int): parse =
-    let terminator = repeat '$' w in
+    let sep = '$' in
+    let terminator = repeat sep w in
     let dict_count = Hashtbl.create (module String) in
-    (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
+    (* let text = (String.concat [ "$"; text; repeat sep w ]) in *)
     let rec helper (pos : int) (parse : int list)
         ((phrase_start, phrase_end) : int * int) 
         (phrase_count : int) : int list =
@@ -68,7 +69,7 @@ end) : PFP_S = struct
       else
         let cur_trigger =
           if pos + w > String.length text then
-            fill (String.slice text pos 0) '$' w
+            fill (String.slice text pos 0) sep w
           else String.slice text pos (pos + w)
         in
         match
@@ -83,7 +84,7 @@ end) : PFP_S = struct
                   String.slice text phrase_start 0 ^ terminator
                 else String.slice text phrase_start (phrase_end + w)
               in
-              if phrase_start = 0 then "$" ^ final_phrase else final_phrase
+              if phrase_start = 0 then (String.of_char sep) ^ final_phrase else final_phrase
             in
             let idx = update_dict dict_count final_phrase in
             helper (pos + 1) (idx :: parse) (pos, pos + 1) phrase_count
@@ -134,7 +135,7 @@ end) : PFP_S = struct
     Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:Int.compare);
     printf "Inverted list (BWT(P)) computed\n%!";
     inv_list
-  let build_ilist_sa_aux (parse : int array) (parseSA : int array) (phrases : string array):
+  (* let build_ilist_sa_aux (parse : int array) (parseSA : int array) (phrases : string array):
   (int, int list) Hashtbl.t * (int, int list) Hashtbl.t=
     let offsets = parse 
     |> Array.map ~f:(fun i -> String.length (Array.get phrases i)) 
@@ -153,7 +154,7 @@ end) : PFP_S = struct
     let sa_aux = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (_, offset) -> offset)) in
     let inv_list = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (bwtpos, _) -> bwtpos)) in
     printf "Inverted list (BWT(P)) computed\n%!";
-    inv_list, sa_aux
+    inv_list, sa_aux *)
 
   let build_bwtlast (w : int) (phrases : string array) (parseSA : int array)
       (parse : int array) : string =
@@ -175,7 +176,7 @@ end) : PFP_S = struct
     let phrases = Array.of_list phrases in
     let phrase_lengths = phrases |> Array.map ~f:String.length in
     let parse = parse |> IntSequence.of_list in
-    let parseSA = parse |> Sais.SAIS.getSA_int in
+    let parseSA = parse |> Array.map ~f:(fun x -> x + 1) |> Gsacak.GSACAK.getSA_int in
     printf "Parse suffix array computed\n%!";
     let bwtlast = build_bwtlast w phrases parseSA parse in
     let inv_list = build_ilist parse parseSA in
@@ -186,19 +187,21 @@ end) : PFP_S = struct
        in *)
     (* TODO: temp, throw "bad positions" in a set and filter that way *)
     (* alternatively, get bool array of good/bad positions to filter *)
-    let dict_concat = phrases |> String.concat_array ~sep:"\x01" in
+    let dict_sep = '\x01' in
+    let dict_concat = phrases |> String.concat_array ~sep:(String.of_char dict_sep) in
     let total_len = String.length dict_concat in
+    let dict_concat = dict_concat ^ "\x00" in
     let _, filter_pos =
       List.fold
         (List.range ~stride:(-1) (total_len - 1) (-1))
         ~init:(total_len, [])
         ~f:(fun (last_delim, lens) idx ->
-          if Char.( = ) (String.get dict_concat idx) '\x01' then (idx, 0 :: lens)
+          if Char.( = ) (String.get dict_concat idx) dict_sep then (idx, 0 :: lens)
           else (last_delim, (last_delim - idx) :: lens))
     in
     let filter_pos =
       List.folding_mapi filter_pos ~init:0 ~f:(fun i phrase_count length ->
-          if Char.( = ) (String.get dict_concat i) '\x01' then
+          if Char.( = ) (String.get dict_concat i) dict_sep then
             (phrase_count + 1, (length, phrase_count))
           else (phrase_count, (length, phrase_count)))
       |> Array.of_list
@@ -234,7 +237,7 @@ end) : PFP_S = struct
     let () = Out_channel.write_all "dict_concat.txt" ~data:dict_concat in *)
     (* use the SAIS SA construction *)
     let d_SA =
-      dict_concat |> Sais.SAIS.getSA
+      dict_concat |> Gsacak.GSACAK.getSA
       |> List.of_array
       |> List.filter_map ~f:(fun suffix_pos ->
             if suffix_pos = (String.length dict_concat) then None else 
