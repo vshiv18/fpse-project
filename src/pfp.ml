@@ -54,7 +54,7 @@ end) : PFP_S = struct
   (* now the helper takes in
      start pointer, current dict, parse, map of phrase to temp index, and current phrase, which is a tuple of (start, end) positions *)
   let parse ?(verbose = false) (text : text) (w : int): parse =
-    let terminator = repeat '$' w in
+    let terminator = repeat '\x02' w in
     let dict_count = Hashtbl.create (module String) in
     (* let text = (String.concat [ "$"; text; repeat '$' w ]) in *)
     let rec helper (pos : int) (parse : int list)
@@ -69,7 +69,7 @@ end) : PFP_S = struct
       else
         let cur_trigger =
           if pos + w > String.length text then
-            fill (String.slice text pos 0) '$' w
+            fill (String.slice text pos 0) '\x02' w
           else String.slice text pos (pos + w)
         in
         match
@@ -84,7 +84,7 @@ end) : PFP_S = struct
                   String.slice text phrase_start 0 ^ terminator
                 else String.slice text phrase_start (phrase_end + w)
               in
-              if phrase_start = 0 then "$" ^ final_phrase else final_phrase
+              if phrase_start = 0 then "\x02" ^ final_phrase else final_phrase
             in
             let idx = update_dict dict_count final_phrase in
             helper (pos + 1) (idx :: parse) (pos, pos + 1) phrase_count
