@@ -52,15 +52,22 @@ let test_sais_bwt _ =
 
 module PfpBWT = PFP (RollHash.Hash.DefaultHasher)
 let test_pfp_bwt _ =
-  assert_equal (Parser.getBWT paper_T 10) paper_BWT;
-  assert_equal (Parser.getBWT small 10) small_BWT;
-  assert_equal (Parser.getBWT seq 10) seq_BWT
+  assert_equal (PfpBWT.getBWT paper_T 10) paper_BWT;
+  assert_equal (PfpBWT.getBWT small 10) small_BWT;
+  assert_equal (PfpBWT.getBWT seq 10) seq_BWT
+
+module GsacakBWT = BigBWT.Gsacak.GSACAK
+let test_gsacak_bwt _ =
+  assert_equal (paper_T |> GsacakBWT.getBWT) paper_BWT;
+  assert_equal (small |> GsacakBWT.getBWT) small_BWT;
+  assert_equal (seq |> GsacakBWT.getBWT) seq_BWT
 
 let bwt_tests =
   "bwt_tests" >::: [ 
     "naive bwt" >:: test_naive_bwt;
     "sais bwt" >:: test_sais_bwt;
-    "pfp bwt" >:: test_pfp_bwt ]
+    "pfp bwt" >:: test_pfp_bwt;
+    "gsacak bwt" >:: test_gsacak_bwt ]
 
 let series = "Project Tests" >::: [ 
   pfp_tests;

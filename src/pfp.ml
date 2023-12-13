@@ -211,7 +211,7 @@ end) : PFP_S = struct
       |> Map.data |> List.concat
     in *)
     let () = printf "length of concatenated dict = %d\n%!" (String.length dict_concat) in
-    let () = Out_channel.write_all "/Users/vikram/Documents/jhu/third_year/fpse/fpse-project/dict_concat.txt" ~data:dict_concat in
+    let () = Out_channel.write_all "dict_concat.txt" ~data:dict_concat in
     (* use the SAIS SA construction *)
     let d_SA =
       dict_concat |> Sais.SAIS.getSA
