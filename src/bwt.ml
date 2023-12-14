@@ -26,29 +26,18 @@ let do_parse_bwt (target : string) (window : int) (out_dir : string) : unit =
   printf "Read input sequence from: %s\n" target;
   let parse = Parser.parse seq window in
   printf "Generated parse!";
-  let bwt = Parser.parse_to_BWT parse window in
   Parser.save_parse parse parse_dir;
   printf "Saved parse to %s\n" parse_dir;
-  printf "BWT computed (showing first 100 characters)\n%s...\n"
-    (String.slice bwt 0 100);
-  (* printf "SA computed (showing first 100 / %d entries)\n%s...\n" (List.length sa)
-    ((List.take sa 100) |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
-  printf "%d\n" (List.length sa); *)
-  Out_channel.write_all (Filename.concat parse_dir "bwt") ~data:bwt
-  (* Out_channel.write_all (Filename.concat parse_dir "sa") ~data:(sa |> List.to_string ~f:Int.to_string) *)
-
+  let outfname = Out_channel.create (Filename.concat parse_dir "bwt") in
+  Parser.parse_to_BWT outfname parse window;
+  printf "BWT computed!\n%!"
 
 let do_bwt (parse_dir : string) (window : int) : unit =
   let parse = Parser.load_parse parse_dir in
   printf "Loaded parse from %s\n" parse_dir;
-  let bwt = Parser.parse_to_BWT parse window in
-  printf "BWT computed (showing first 100 characters)\n%s...\n"
-    (String.slice bwt 0 100);
-  (* printf "SA computed (showing first 100 / %d entries)\n%s...\n" (List.length sa)
-    ((List.take sa 100) |> List.map ~f:Int.to_string |> String.concat ~sep:", ");
-  printf "%d\n" (List.length sa); *)
-  Out_channel.write_all (Filename.concat parse_dir "bwt") ~data:bwt
-  (* Out_channel.write_all (Filename.concat parse_dir "sa") ~data:(sa |> List.to_string ~f:Int.to_string) *)
+  let outfname = Out_channel.create (Filename.concat parse_dir "bwt") in
+  Parser.parse_to_BWT outfname parse window;
+  printf "BWT computed!\n"
 
 let do_run (input_fname : string option) (parse_dir : string option)
     (window : int) (out_dir : string) : unit =

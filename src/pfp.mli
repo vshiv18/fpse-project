@@ -19,7 +19,7 @@ module type PFP_S = sig
   val dict_to_alist : dict -> (string * int) list
 
   (* Given the dictionary and parse of the BWT, use it to compute the BWT of the original text *)
-  val parse_to_BWT : parse -> int -> string
+  val parse_to_BWT : Out_channel.t -> parse -> int -> unit
   val getBWT : text -> int -> string
   val save_parse : parse -> string -> unit
   val load_parse : string -> parse

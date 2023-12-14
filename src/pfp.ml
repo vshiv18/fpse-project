@@ -10,7 +10,7 @@ module type PFP_S = sig
   val parse : ?verbose:bool -> text -> int -> parse
   val buildText : string -> text
   val dict_to_alist : dict -> (string * int) list
-  val parse_to_BWT : parse -> int -> string
+  val parse_to_BWT : Out_channel.t -> parse -> int -> unit
   val getBWT : text -> int -> string
   val save_parse : parse -> string -> unit
   val load_parse : string -> parse
@@ -135,26 +135,6 @@ end) : PFP_S = struct
     Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:Int.compare);
     printf "Inverted list (BWT(P)) computed\n%!";
     inv_list
-  (* let build_ilist_sa_aux (parse : int array) (parseSA : int array) (phrases : string array):
-  (int, int list) Hashtbl.t * (int, int list) Hashtbl.t=
-    let offsets = parse 
-    |> Array.map ~f:(fun i -> String.length (Array.get phrases i)) 
-    |> Array.folding_map ~init:0 ~f:(fun acc len ->(acc + len, acc + len - 1)) in
-    let inv_list = Hashtbl.create (module Int) in
-    parseSA
-    |> Array.filter ~f:(fun x -> x <> 0)
-    |> Array.iteri ~f:(fun i p ->
-          match p with
-          | 0 -> ()
-          | idx ->
-              let p = IntSequence.get parse (idx - 1) in
-              let s = Array.get offsets (idx - 1) in
-              Hashtbl.add_multi inv_list ~key:p ~data:(i, s));
-    Hashtbl.map_inplace inv_list ~f:(List.sort ~compare:(fun (i1, _) (i2, _) -> Int.compare i1 i2));
-    let sa_aux = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (_, offset) -> offset)) in
-    let inv_list = Hashtbl.map inv_list ~f:(fun l -> List.map l ~f:(fun (bwtpos, _) -> bwtpos)) in
-    printf "Inverted list (BWT(P)) computed\n%!";
-    inv_list, sa_aux *)
 
   let build_bwtlast (w : int) (phrases : string array) (parseSA : int array)
       (parse : int array) : string =
@@ -170,7 +150,7 @@ end) : PFP_S = struct
     w_array
 
   (* TODO: *)
-  let parse_to_BWT (parse : parse) (w : int) : text =
+  let parse_to_BWT (_: Out_channel.t) (parse : parse) (w : int) : unit =
     let phrases, _, parse = parse in
     (* let freqs = Array.of_list freqs in *)
     let phrases = Array.of_list phrases in
@@ -240,8 +220,7 @@ end) : PFP_S = struct
     (* use the SAIS SA construction *)
     let d_SA =
       dict_concat |> Gsacak.GSACAK.getSA
-      |> List.of_array 
-      |> List.filter_map ~f:(fun suffix_pos ->
+      |> Array.filter_map ~f:(fun suffix_pos ->
             if suffix_pos >= (Array.length filter_pos) then None else 
              let len, phrase_id = Array.get filter_pos suffix_pos in
              if len <= w then None else Some (len, phrase_id)) 
@@ -313,7 +292,7 @@ end) : PFP_S = struct
     in
     (* fold through SA of dict *)
     let bwt, prev_alpha, prev_phrases =
-      List.fold d_SA ~init:([], "", [])
+      Array.fold d_SA ~init:([], "", [])
         ~f:(fun (bwt, prev_alpha, prev_phrases) (len, phrase_id) ->
           (* If suffix is a phrase from the dict, then process the buffer and set is_phrase = true to use BWTlast next iteration *)
           if (List.length bwt) % 1000 = 0 then printf "completed %d chars\n%!" (List.length bwt); 
@@ -341,14 +320,18 @@ end) : PFP_S = struct
                 cur_suffix,
                 [ phrase_id ] )
     in
-    process_alpha bwt prev_alpha prev_phrases
+    let _ = process_alpha bwt prev_alpha prev_phrases
     (* we get the reverse BWT as a list of chars, post-processing *)
     |> String.of_char_list
     |> String.rev
+    in ()
 
   let getBWT input_string w =
     let p = parse input_string w in
-    parse_to_BWT p w
+    parse_to_BWT (Out_channel.create "temp") p w;
+    let bwt = In_channel.read_all "temp" in
+    (* Core_unix.remove "temp"; *)
+    bwt
 
   let save_parse (parse : parse) (out_dir : string) : unit =
     let dict, freq, parse = parse in
