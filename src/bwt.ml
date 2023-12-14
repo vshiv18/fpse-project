@@ -5,11 +5,11 @@ type do_mode = Make of string | Load of string | None of string
 
 let get_do_mode (input_fname : string option) (parse_dir : string option) =
   match (input_fname, parse_dir) with
-  | Some target, None -> Parse target
+  | Some target, None -> Make target
   | Some _, Some parse_dir ->
       printf "Overwriting parse_dir in %s\n" parse_dir;
-      BWT parse_dir
-  | None, Some parse_dir -> BWT parse_dir
+      Load parse_dir
+  | None, Some parse_dir -> Load parse_dir
   | _ -> None "Exactly one of -i input_file or --parse_dir needs to be set"
 
 let prepare_parse_dir (out_dir : string) : string =
@@ -44,8 +44,8 @@ let do_bwt (parse_dir : string) (window : int) : unit =
 let do_run (input_fname : string option) (parse_dir : string option)
     (window : int) (out_dir : string) : unit =
   match get_do_mode input_fname parse_dir with
-  | Parse target -> do_parse_bwt target window out_dir
-  | BWT parse_dir -> do_bwt parse_dir window
+  | Make target -> do_parse_bwt target window out_dir
+  | Load parse_dir -> do_bwt parse_dir window
   | None msg -> printf "Invalid arguments: %s\n" msg
 
 let command =

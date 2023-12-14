@@ -38,8 +38,8 @@
   (pps ppx_jane)))
 
 (executable
- (name getsa)
- (modules getsa)
+ (name sacak_bwt)
+ (modules sacak_bwt)
  (libraries
   core
   core_unix.sys_unix
