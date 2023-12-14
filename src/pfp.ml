@@ -178,6 +178,9 @@ end) : PFP_S = struct
     let parse = parse |> IntSequence.of_list in
     let parseSA = parse |> Array.map ~f:(fun x -> x + 1) |> Gsacak.GSACAK.getSA_int in
     printf "Parse suffix array computed\n%!";
+    (* printf "length of parseSA: %d\n%!" (Array.length parseSA);
+    printf "parseSA:\n%s\n%!" (parseSA |> List.of_array |> List.to_string ~f:Int.to_string);
+    printf "length of parse: %d\n%!" (Array.length parse); *)
     let bwtlast = build_bwtlast w phrases parseSA parse in
     let inv_list = build_ilist parse parseSA in
     (* let phrase_starts = phrases
@@ -190,7 +193,6 @@ end) : PFP_S = struct
     let dict_sep = '\x01' in
     let dict_concat = phrases |> String.concat_array ~sep:(String.of_char dict_sep) in
     let total_len = String.length dict_concat in
-    let dict_concat = dict_concat ^ "\x00" in
     let _, filter_pos =
       List.fold
         (List.range ~stride:(-1) (total_len - 1) (-1))
@@ -238,26 +240,46 @@ end) : PFP_S = struct
     (* use the SAIS SA construction *)
     let d_SA =
       dict_concat |> Gsacak.GSACAK.getSA
-      |> List.of_array
+      |> List.of_array 
       |> List.filter_map ~f:(fun suffix_pos ->
-            if suffix_pos = (String.length dict_concat) then None else 
+            if suffix_pos >= (Array.length filter_pos) then None else 
              let len, phrase_id = Array.get filter_pos suffix_pos in
-             if len <= w then None else Some (len, phrase_id))
+             if len <= w then None else Some (len, phrase_id)) 
     in
 
     let () = printf "computed SA of dict\n%!" in
     (* fold, accumulator is (current output BWT, is buffer a dict phrase,
                             current representative phrase suffix, list of phrases that it occurs in) *)
+    
+
+    (* THIS IS JUST FOR DEBUGGING PURPOSES, REMOVE LATER
+       Load in ground truth for char by char comparison. Figure out on which proper phrase suffix this breaks... *)
+    let true_bwt = In_channel.with_file "/Users/vikram/Documents/jhu/third_year/fpse/fpse-project/chr19.bwt" ~f:(fun channel -> In_channel.input_all channel) in
+    let () = printf "loaded true bwt for debugging: %s\n%!" (String.slice true_bwt 0 100) in
+    (* REMOVE ABOVE *)
+
     let process_phrase bwt phrase_id =
+      (* let cur_len = List.length bwt in *)
       let occs = Hashtbl.find_exn inv_list phrase_id in
-      List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq)
+      (* printf "PHRASE PROCESSED %d:\n%!" phrase_id;
+      printf "%s\n%!" (Array.get phrases phrase_id);
+      printf "%s\n%!" (List.to_string ~f:(fun x -> "(" ^ (Int.to_string x) ^ ", " ^ (String.of_char (String.get bwtlast x)) ^ ")") occs); *)
+      let bwt = List.fold occs ~init:bwt ~f:(fun seq p -> String.get bwtlast p :: seq) in
+      (* let added = (List.take bwt (List.length occs)) |> List.rev |> String.of_char_list in
+      let truth = String.slice true_bwt cur_len (cur_len + (String.length added)) in
+      if String.(truth <> added) then 
+        let () = printf "MISMATCH FOUND AFTER %d CHARS:\n" cur_len in 
+        let () = printf "Added: %s\n Expected: %s\n%!" added truth in
+        exit 0; else  *)
+      bwt
     in
 
     let process_alpha
-        ((bwt, prev_alpha, prev_phrases) : char list * string * int list) :
+        (bwt : char list) (prev_alpha : string) (prev_phrases : int list) :
         char list =
       if String.length prev_alpha = 0 then bwt
       else
+        (* let cur_len = List.length bwt in *)
         (* if this is a phrase, get prev chars from BWTlast, in order of ilist (already sorted) *)
         (* collect prev char of suffix from each phrase it appears in *)
         let prev_chars =
@@ -275,18 +297,29 @@ end) : PFP_S = struct
                  List.merge acc l ~compare:(fun (x1, _) (x2, _) ->
                      Int.compare x1 x2))
         in
-
+        (* printf "ALPHA PROCESSED:\n%!";
+        printf "%s\n%!" prev_alpha;
+        printf "%s\n%!" (List.to_string ~f:(fun (x, c) -> "(" ^ (Int.to_string x) ^ ", " ^ (String.of_char c) ^ ")") merged_ilist); *)
         (* read off prev chars in order of ilist positions *)
-        List.fold merged_ilist ~init:bwt ~f:(fun seq (_, c) -> c :: seq)
+        let bwt = List.fold merged_ilist ~init:bwt ~f:(fun seq (_, c) -> c :: seq) in
+
+        (* let added = (List.take bwt (List.length merged_ilist)) |> List.rev |> String.of_char_list in
+        let truth = String.slice true_bwt cur_len (cur_len + (String.length added)) in
+        if String.(truth <> added) then 
+          let () = printf "MISMATCH FOUND:\n" in 
+          let () = printf "Added: %s\n Expected: %s\n%!" added truth in
+          exit 0; else  *)
+        bwt
     in
     (* fold through SA of dict *)
     let bwt, prev_alpha, prev_phrases =
       List.fold d_SA ~init:([], "", [])
         ~f:(fun (bwt, prev_alpha, prev_phrases) (len, phrase_id) ->
           (* If suffix is a phrase from the dict, then process the buffer and set is_phrase = true to use BWTlast next iteration *)
+          if (List.length bwt) % 1000 = 0 then printf "completed %d chars\n%!" (List.length bwt); 
           if len = Array.get phrase_lengths phrase_id then
             ( process_phrase
-                (process_alpha (bwt, prev_alpha, prev_phrases))
+                (process_alpha bwt prev_alpha prev_phrases)
                 phrase_id,
               "",
               [] )
@@ -304,11 +337,11 @@ end) : PFP_S = struct
             then (bwt, cur_suffix, phrase_id :: prev_phrases)
             else
               (* otherwise process buffer and start new alpha range *)
-              ( process_alpha (bwt, prev_alpha, prev_phrases),
+              ( process_alpha bwt prev_alpha prev_phrases),
                 cur_suffix,
-                [ phrase_id ] ))
+                [ phrase_id ] )
     in
-    process_alpha (bwt, prev_alpha, prev_phrases)
+    process_alpha bwt prev_alpha prev_phrases
     (* we get the reverse BWT as a list of chars, post-processing *)
     |> String.of_char_list
     |> String.rev
