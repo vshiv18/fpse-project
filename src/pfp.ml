@@ -64,6 +64,11 @@ end) : S = struct
   let sorted_freqs (phrases : text list) (dict_count : dict) : int list =
     phrases |> List.map ~f:(fun p -> Hashtbl.find_exn dict_count p)
 
+  let first_phrase_invariant (final_phrase : string) (parse : int list) : bool =
+    if List.length parse = 0 then
+      String.equal (String.prefix final_phrase 1) "$"
+    else true
+
   let trigger (chunk : string) (window : int) (streamer : FASTAStreamer.t)
       (is_last_chunk : bool) : text * text * bool =
     if String.length chunk < window then
@@ -101,6 +106,7 @@ end) : S = struct
               is_last_chunk parse
         | true ->
             let final_phrase = phrase ^ trigger in
+            assert (first_phrase_invariant final_phrase parse);
             Hashtbl.incr dict_count final_phrase;
             f (String.prefix chunk 1)
               (String.drop_prefix chunk 1)
