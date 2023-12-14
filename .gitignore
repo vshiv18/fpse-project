@@ -31,3 +31,5 @@ _opam/
 out
 *.coverage
 chm13_chr19.fa
+.vscode
+_coverage

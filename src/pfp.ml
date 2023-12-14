@@ -11,7 +11,8 @@ module type S = sig
   val dict_to_alist : dict -> (string * int) list
   val initialize_streamer : ?chunk_size:int -> string -> Fasta.FASTAStreamer.t
   val trigger : string -> int -> FASTAStreamer.t -> bool -> text * text * bool
-  val hash : string -> int -> int list * dict
+  val sorted_phrases : dict -> text list
+  val hash : ?chunk_size:int -> string -> window:int -> int list * dict
   val parse : string -> int -> parse
   val buildText : string -> text
   val parse_to_BWT : parse -> int -> string
@@ -34,12 +35,14 @@ end) : S = struct
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
+  let default_chunk_size = 100
+
   let dict_to_alist (dict : dict) : (string * int) list =
     Hashtbl.to_alist dict
     |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)
 
-  let initialize_streamer ?(chunk_size = 100) (filename : string) :
-      FASTAStreamer.t =
+  let initialize_streamer ?(chunk_size = default_chunk_size) (filename : string)
+      : FASTAStreamer.t =
     FASTAStreamer.create ~chunk_size filename
 
   let finished (phrase : string) (chunk : string) (is_last_chunk : bool) : bool
@@ -76,8 +79,9 @@ end) : S = struct
             (String.prefix chunk window, chunk, true)
     else (String.prefix chunk window, chunk, is_last_chunk)
 
-  let hash (filename : string) (window : int) : int list * dict =
-    let streamer = initialize_streamer filename in
+  let hash ?(chunk_size = default_chunk_size) (filename : string)
+      ~(window : int) : int list * dict =
+    let streamer = initialize_streamer ~chunk_size filename in
     let terminator = String.pad_right ~char:'$' "" ~len:window in
     let dict_count = Hashtbl.create (module String) in
     let rec f (phrase : string) (chunk : string) (is_last_chunk : bool)
@@ -118,7 +122,7 @@ end) : S = struct
       dict_count )
 
   let parse (filename : string) (window : int) : parse =
-    let hash, dict_count = hash filename window in
+    let hash, dict_count = hash filename ~window in
     let phrases = sorted_phrases dict_count in
     let parse = sorted_parse phrases hash in
     let freqs = sorted_freqs phrases dict_count in

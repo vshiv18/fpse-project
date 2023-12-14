@@ -62,7 +62,7 @@ module FASTAStreamer = struct
           false)
         else false
 
-  let parse_buffer (streamer : t) : string =
+  let parse (streamer : t) : string =
     String.filter
       (Buffer.contents streamer.buffer
       |> String.tr ~target:fasta_seq_separator ~replacement:parse_seq_separator
@@ -75,6 +75,6 @@ module FASTAStreamer = struct
       In_channel.input_buffer streamer.channel streamer.buffer
         ~len:streamer.chunk_size
     with
-    | Some _ -> Continue (parse_buffer streamer)
-    | None -> Stop (parse_buffer streamer)
+    | Some _ -> Continue (parse streamer)
+    | None -> Stop (parse streamer)
 end

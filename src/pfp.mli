@@ -9,7 +9,8 @@ module type S = sig
   val trigger :
     string -> int -> Fasta.FASTAStreamer.t -> bool -> text * text * bool
 
-  val hash : string -> int -> int list * dict
+  val sorted_phrases : dict -> text list
+  val hash : ?chunk_size:int -> string -> window:int -> int list * dict
   val parse : string -> int -> parse
   val buildText : string -> text
   val parse_to_BWT : parse -> int -> string

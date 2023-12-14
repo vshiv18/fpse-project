@@ -12,12 +12,17 @@ let test_int32_write_list _ =
   Int32Serializer.write_list filename [ 42; 43; 44 ];
   assert_equal [ 42; 43; 44 ] @@ Int32Serializer.read_list filename
 
+let test_int32_empty_read _ =
+  assert_raises (Failure "empty file") @@ fun _ ->
+  Int32Serializer.read "./empty.test"
+
 let int32serializer_tests =
   "Int32Serializer tests"
   >: test_list
        [
          "test write" >:: test_int32_write;
          "test write_list" >:: test_int32_write_list;
+         "test fail read" >:: test_int32_empty_read;
        ]
 
 let test_string_write _ =

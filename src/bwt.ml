@@ -20,14 +20,14 @@ let prepare_parse_dir (filename : string) (out_dir : string) : string =
 
 let do_bwt (parse : Parser.parse) (parse_dir : string) (window : int) : unit =
   let bwt = Parser.parse_to_BWT parse window in
-  printf "BWT computed (showing first 100 characters)\n%s...\n"
+  printf "BWT computed (showing first 100 characters)\n%s ...\n"
     (if String.length bwt > 100 then String.slice bwt 0 100 else bwt);
   Out_channel.write_all (Filename.concat parse_dir "bwt") ~data:bwt
 
 let do_make (filename : string) (window : int) (out_dir : string) : unit =
   let parse_dir = prepare_parse_dir filename out_dir in
   let parse = Parser.parse filename window in
-  printf "Generated parse!";
+  printf "Generated parse!\n";
   Parser.save_parse parse parse_dir;
   printf "Saved parse to %s\n" parse_dir;
   do_bwt parse parse_dir window

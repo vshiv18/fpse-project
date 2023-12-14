@@ -7,7 +7,7 @@ module TestHash = struct
     List.mem [ "AC"; "AG"; "TG"; "$$" ] s ~equal:String.( = )
 end
 
-let filename = "./parse.fa"
+let filename = "./parse.test"
 
 module Parser = PFP (TestHash)
 
@@ -19,13 +19,12 @@ let test_correctness _ =
   assert_equal [ 0; 1; 3; 1; 4; 2 ] @@ parse
 
 let test_hash _ =
-  let hash, dict_count = Parser.hash filename 2 in
-  assert_equal
-    (List.map
-       ~f:(fun p -> Hashtbl.hash p)
-       [ "$GATTAC"; "ACATG"; "TGGATAC"; "ACATG"; "TGGATTAG"; "AGATA$$" ])
-  @@ hash;
-  assert_equal
+  let gt_hash =
+    List.map
+      ~f:(fun p -> Hashtbl.hash p)
+      [ "$GATTAC"; "ACATG"; "TGGATAC"; "ACATG"; "TGGATTAG"; "AGATA$$" ]
+  in
+  let gt_counts =
     [
       ("$GATTAC", 1);
       ("ACATG", 2);
@@ -33,10 +32,16 @@ let test_hash _ =
       ("TGGATAC", 1);
       ("TGGATTAG", 1);
     ]
-  @@ Parser.dict_to_alist dict_count
+  in
+  let hash, dict_count = Parser.hash filename ~window:2 in
+  assert_equal gt_hash @@ hash;
+  assert_equal gt_counts @@ Parser.dict_to_alist dict_count;
+  let hash, dict_count = Parser.hash ~chunk_size:5 filename ~window:2 in
+  assert_equal gt_hash @@ hash;
+  assert_equal gt_counts @@ Parser.dict_to_alist dict_count
 
 let test_trigger _ =
-  let streamer = Parser.initialize_streamer ~chunk_size:20 filename in
+  let streamer = Parser.initialize_streamer ~chunk_size:5 filename in
   let chunk, is_last_chunk =
     (Fasta.Chunk.value (Fasta.FASTAStreamer.next streamer), false)
   in
