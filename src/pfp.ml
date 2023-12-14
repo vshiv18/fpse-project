@@ -9,7 +9,7 @@ module type S = sig
   type parse = string list * int list * int list
 
   val dict_to_alist : dict -> (string * int) list
-  val initialize_streamer : ?chunk_size:int -> string -> Fasta.FASTAStreamer.t
+  val initialize_streamer : string -> chunk_size:int -> Fasta.FASTAStreamer.t
   val trigger : string -> int -> FASTAStreamer.t -> bool -> text * text * bool
   val sorted_phrases : dict -> text list
   val hash : ?chunk_size:int -> string -> window:int -> int list * dict
@@ -41,8 +41,8 @@ end) : S = struct
     Hashtbl.to_alist dict
     |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)
 
-  let initialize_streamer ?(chunk_size = default_chunk_size) (filename : string)
-      : FASTAStreamer.t =
+  let initialize_streamer (filename : string) ~(chunk_size : int) :
+      FASTAStreamer.t =
     FASTAStreamer.create ~chunk_size filename
 
   let finished (phrase : string) (chunk : string) (is_last_chunk : bool) : bool
@@ -81,7 +81,7 @@ end) : S = struct
 
   let hash ?(chunk_size = default_chunk_size) (filename : string)
       ~(window : int) : int list * dict =
-    let streamer = initialize_streamer ~chunk_size filename in
+    let streamer = initialize_streamer filename ~chunk_size in
     let terminator = String.pad_right ~char:'$' "" ~len:window in
     let dict_count = Hashtbl.create (module String) in
     let rec f (phrase : string) (chunk : string) (is_last_chunk : bool)

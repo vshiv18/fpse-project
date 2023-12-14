@@ -4,7 +4,7 @@ module type S = sig
   type parse = string list * int list * int list
 
   val dict_to_alist : dict -> (string * int) list
-  val initialize_streamer : ?chunk_size:int -> string -> Fasta.FASTAStreamer.t
+  val initialize_streamer : string -> chunk_size:int -> Fasta.FASTAStreamer.t
 
   val trigger :
     string -> int -> Fasta.FASTAStreamer.t -> bool -> text * text * bool
