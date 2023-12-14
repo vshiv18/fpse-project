@@ -1,13 +1,15 @@
 open Core
 module Parser = BigBWT.Pfp.PFP (RollHash.Hash.DefaultHasher)
 
-type do_mode = Parse of string | BWT of string | None of string
+type do_mode = Make of string | Load of string | None of string
 
 let get_do_mode (input_fname : string option) (parse_dir : string option) =
   match (input_fname, parse_dir) with
   | Some target, None -> Parse target
-  | Some _, Some parse_dir -> printf "Overwriting parse_dir in %s\n" parse_dir; BWT parse_dir
-  | None , Some parse_dir -> BWT parse_dir
+  | Some _, Some parse_dir ->
+      printf "Overwriting parse_dir in %s\n" parse_dir;
+      BWT parse_dir
+  | None, Some parse_dir -> BWT parse_dir
   | _ -> None "Exactly one of -i input_file or --parse_dir needs to be set"
 
 let prepare_parse_dir (out_dir : string) : string =

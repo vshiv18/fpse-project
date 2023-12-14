@@ -1,5 +1,7 @@
 (tests
- (names test_bigbwt)
- (libraries core ounit2 BigBWT fasta)
- (deps ./data/fasta.test ./data/big.txt ./data/big_bwt.txt)
- (preprocess (pps ppx_jane)))
+ (names test_serialize test_fasta test_pfp test_bigbwt)
+ (deps
+  (glob_files_rec ./data/*))
+ (libraries core serialize fasta BigBWT ounit2)
+ (preprocess
+  (pps ppx_jane)))

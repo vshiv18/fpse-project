@@ -3,7 +3,14 @@
  (modules serialize)
  (libraries core)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane bisect_ppx)))
+
+(library
+ (name fasta)
+ (modules fasta)
+ (libraries core)
+ (preprocess
+  (pps ppx_jane bisect_ppx)))
 
 (library
  (name RollHash)
@@ -12,12 +19,6 @@
  (preprocess
   (pps ppx_jane)))
 
-(library
- (name fasta)
- (modules fasta)
- (libraries core)
- (preprocess
-  (pps ppx_jane)))
 
 (library
  (name BigBWT)
@@ -27,19 +28,12 @@
  (foreign_stubs (language c) (names bindings gsacak) (flags -I. -fPIC))
  (c_library_flags (-O3 -std=c99))
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane bisect_ppx)))
 
 (executable
  (name bwt)
  (modules bwt)
- (libraries
-  core
-  core_unix.sys_unix
-  core_unix.command_unix
-  stdio
-  BigBWT
-  RollHash
-  serialize)
+ (libraries core core_unix.sys_unix core_unix.command_unix stdio BigBWT)
  (preprocess
   (pps ppx_jane)))
 
