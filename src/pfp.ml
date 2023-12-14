@@ -327,7 +327,7 @@ end) : PFP_S = struct
     let p = parse input_string w in
     parse_to_BWT (Out_channel.create "temp") p w;
     let bwt = In_channel.read_all "temp" in
-    (* Core_unix.remove "temp"; *)
+    Core_unix.remove "temp";
     bwt
 
   let save_parse (parse : parse) (out_dir : string) : unit =
