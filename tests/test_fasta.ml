@@ -2,7 +2,7 @@ open Core
 open OUnit2
 open Fasta
 
-let filename = "./fasta.test"
+let filename = "./data/fasta.test"
 
 let test_small_chunk _ =
   let chunk_size = 10 in

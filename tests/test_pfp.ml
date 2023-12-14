@@ -7,7 +7,7 @@ module TestHash = struct
     List.mem [ "AC"; "AG"; "TG"; "$$" ] s ~equal:String.( = )
 end
 
-let filename = "./parse.test"
+let filename = "./data/parse.test"
 
 module Parser = PFP (TestHash)
 

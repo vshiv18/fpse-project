@@ -19,7 +19,9 @@ module type S = sig
   val hash : ?chunk_size:int -> string -> window:int -> int list * dict
   val parse : string -> int -> parse
   val buildText : string -> text
-  val parse_to_BWT : parse -> int -> string
+
+  (* Given the dictionary and parse of the BWT, use it to compute the BWT of the original text *)
+  val parse_to_BWT : Out_channel.t -> parse -> int -> unit
   val getBWT : text -> int -> string
   val save_parse : parse -> string -> unit
   val load_parse : string -> parse

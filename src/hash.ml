@@ -10,11 +10,13 @@ end
 module type Params = sig
   val b : int
   val p : int
+  val modulus : int
 end
 
 module Default : Params = struct
   let b = 256
   let p = 27162335252586509
+  let modulus = 100
 end
 
 module MakeRollHash (P : Params) : S = struct
@@ -46,7 +48,7 @@ module MakeRollHash (P : Params) : S = struct
   let prev_hash (str : string) (last : int) =
     mul last b_inv |> add (Char.to_int (String.get str 0))
 
-  let is_trigger_string (str : string) = Int.( = ) 0 @@ hash str
+  let is_trigger_string (str : string) = Int.( = ) 0 @@ (hash str) mod P.modulus
 end
 
 module DefaultHasher = MakeRollHash (Default)

@@ -51,7 +51,7 @@ end
 module StringSerializer : S with type t = string = struct
   type t = string
 
-  let separator : char = '\001'
+  let separator : char = '\x01'
 
   let write (filename : string) (x : t) : unit =
     Out_channel.with_file filename ~f:(fun oc -> Out_channel.output_string oc x)

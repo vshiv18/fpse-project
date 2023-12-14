@@ -19,11 +19,14 @@
  (preprocess
   (pps ppx_jane)))
 
+
 (library
  (name BigBWT)
- (modules naive_bwt pfp fm_index)
+ (modules naive_bwt pfp fm_index sais gsacak)
  (modules_without_implementation fm_index)
- (libraries core RollHash serialize fasta)
+ (libraries core RollHash serialize fasta core_unix.sys_unix core_unix.command_unix)
+ (foreign_stubs (language c) (names bindings gsacak) (flags -I. -fPIC))
+ (c_library_flags (-O3 -std=c99))
  (preprocess
   (pps ppx_jane bisect_ppx)))
 
@@ -31,5 +34,18 @@
  (name bwt)
  (modules bwt)
  (libraries core core_unix.sys_unix core_unix.command_unix stdio BigBWT)
+ (preprocess
+  (pps ppx_jane)))
+
+(executable
+ (name getsa)
+ (modules getsa)
+ (libraries
+  core
+  core_unix.sys_unix
+  core_unix.command_unix
+  stdio
+  BigBWT
+  )
  (preprocess
   (pps ppx_jane)))

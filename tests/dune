@@ -1,7 +1,7 @@
 (tests
- (names test_serialize test_fasta test_pfp)
+ (names test_serialize test_fasta test_pfp test_bigbwt)
  (deps
-  (glob_files_rec ./*))
+  (glob_files_rec ./data/*))
  (libraries core serialize fasta BigBWT ounit2)
  (preprocess
   (pps ppx_jane)))
