@@ -7,7 +7,13 @@ module type S = sig
   val initialize_streamer : string -> chunk_size:int -> Fasta.FASTAStreamer.t
 
   val trigger :
-    string -> int -> Fasta.FASTAStreamer.t -> bool -> text * text * bool
+    chunk:string ->
+    phrase_start:int ->
+    phrase_end:int ->
+    window:int ->
+    Fasta.FASTAStreamer.t ->
+    bool ->
+    text * int * int * text * bool
 
   val sorted_phrases : dict -> text list
   val hash : ?chunk_size:int -> string -> window:int -> int list * dict

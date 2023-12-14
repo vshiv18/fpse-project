@@ -10,7 +10,16 @@ module type S = sig
 
   val dict_to_alist : dict -> (string * int) list
   val initialize_streamer : string -> chunk_size:int -> Fasta.FASTAStreamer.t
-  val trigger : string -> int -> FASTAStreamer.t -> bool -> text * text * bool
+
+  val trigger :
+    chunk:string ->
+    phrase_start:int ->
+    phrase_end:int ->
+    window:int ->
+    FASTAStreamer.t ->
+    bool ->
+    text * int * int * text * bool
+
   val sorted_phrases : dict -> text list
   val hash : ?chunk_size:int -> string -> window:int -> int list * dict
   val parse : string -> int -> parse
@@ -35,7 +44,7 @@ end) : S = struct
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
-  let default_chunk_size = 100
+  let default_chunk_size = 4096
 
   let dict_to_alist (dict : dict) : (string * int) list =
     Hashtbl.to_alist dict
@@ -44,10 +53,6 @@ end) : S = struct
   let initialize_streamer (filename : string) ~(chunk_size : int) :
       FASTAStreamer.t =
     FASTAStreamer.create ~chunk_size filename
-
-  let finished (phrase : string) (chunk : string) (is_last_chunk : bool) : bool
-      =
-    String.is_empty phrase && String.is_empty chunk && is_last_chunk
 
   let sorted_phrases (dict_count : dict) : text list =
     dict_count |> Hashtbl.keys |> List.sort ~compare:String.compare
@@ -66,65 +71,82 @@ end) : S = struct
 
   let first_phrase_invariant (final_phrase : string) (parse : int list) : bool =
     if List.length parse = 0 then
-      String.equal (String.prefix final_phrase 1) "$"
+      String.equal (String.slice final_phrase 0 1) "$"
     else true
 
-  let trigger (chunk : string) (window : int) (streamer : FASTAStreamer.t)
-      (is_last_chunk : bool) : text * text * bool =
-    if String.length chunk < window then
+  let trigger ~(chunk : string) ~(phrase_start : int) ~(phrase_end : int)
+      ~(window : int) (streamer : FASTAStreamer.t) (is_last_chunk : bool) :
+      text * int * int * text * bool =
+    if phrase_end + window > String.length chunk then
       if is_last_chunk then
-        (String.pad_right ~char:'$' chunk ~len:window, chunk, is_last_chunk)
+        ( String.pad_right ~char:'$'
+            (String.slice chunk phrase_end 0)
+            ~len:window,
+          phrase_start,
+          phrase_end,
+          chunk,
+          is_last_chunk )
       else
-        match FASTAStreamer.next streamer with
-        | Continue next_chunk ->
-            let chunk = chunk ^ next_chunk in
-            (String.prefix chunk window, chunk, false)
-        | Stop next_chunk ->
-            let chunk = chunk ^ next_chunk in
-            (String.prefix chunk window, chunk, true)
-    else (String.prefix chunk window, chunk, is_last_chunk)
+        let chunk, is_last_chunk =
+          match FASTAStreamer.next streamer with
+          | Continue next_chunk ->
+              (String.slice chunk phrase_start 0 ^ next_chunk, false)
+          | Stop next_chunk ->
+              (String.slice chunk phrase_start 0 ^ next_chunk, true)
+        in
+        let phrase_start, phrase_end = (0, phrase_end - phrase_start) in
+        ( String.slice chunk phrase_end (phrase_end + window),
+          phrase_start,
+          phrase_end,
+          chunk,
+          is_last_chunk )
+    else
+      ( String.slice chunk phrase_end (phrase_end + window),
+        phrase_start,
+        phrase_end,
+        chunk,
+        is_last_chunk )
 
   let hash ?(chunk_size = default_chunk_size) (filename : string)
       ~(window : int) : int list * dict =
     let streamer = initialize_streamer filename ~chunk_size in
     let terminator = String.pad_right ~char:'$' "" ~len:window in
     let dict_count = Hashtbl.create (module String) in
-    let rec f (phrase : string) (chunk : string) (is_last_chunk : bool)
-        (parse : int list) : int list =
-      if finished phrase chunk is_last_chunk then parse
+    let rec f (phrase : int * int) (chunk : text * bool) (parse : int list) :
+        int list =
+      let phrase_start, phrase_end = phrase in
+      let chunk, is_last_chunk = chunk in
+      if phrase_end > String.length chunk then parse
       else
-        let trigger, chunk, is_last_chunk =
-          trigger chunk window streamer is_last_chunk
+        let trigger, phrase_start, phrase_end, chunk, is_last_chunk =
+          trigger ~chunk ~phrase_start ~phrase_end ~window streamer
+            is_last_chunk
         in
         match
           String.( = ) trigger terminator || Hash.is_trigger_string trigger
         with
-        | false ->
-            f
-              (phrase ^ String.prefix chunk 1)
-              (String.drop_prefix chunk 1)
-              is_last_chunk parse
+        | false -> f (phrase_start, phrase_end + 1) (chunk, is_last_chunk) parse
         | true ->
-            let final_phrase = phrase ^ trigger in
+            let final_phrase =
+              String.slice chunk phrase_start phrase_end ^ trigger
+            in
+            let final_phrase =
+              if List.length parse = 0 then String.of_char '$' ^ final_phrase
+              else final_phrase
+            in
             assert (first_phrase_invariant final_phrase parse);
             Hashtbl.incr dict_count final_phrase;
-            f (String.prefix chunk 1)
-              (String.drop_prefix chunk 1)
-              is_last_chunk
+            f
+              (phrase_end, phrase_end + 1)
+              (chunk, is_last_chunk)
               (Hashtbl.hash final_phrase :: parse)
     in
-    ( List.rev
-        (match FASTAStreamer.next streamer with
-        | Continue first_chunk ->
-            f
-              (String.prefix first_chunk 1)
-              (String.drop_prefix first_chunk 1)
-              false []
-        | Stop first_chunk ->
-            f
-              (String.prefix first_chunk 1)
-              (String.drop_prefix first_chunk 1)
-              true []),
+    let first_chunk, is_last_chunk =
+      match FASTAStreamer.next streamer with
+      | Continue first_chunk -> (first_chunk, false)
+      | Stop first_chunk -> (first_chunk, true)
+    in
+    ( List.rev (f (0, 0) (String.slice first_chunk 1 0, is_last_chunk) []),
       dict_count )
 
   let parse (filename : string) (window : int) : parse =

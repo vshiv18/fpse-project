@@ -36,7 +36,7 @@ let test_hash _ =
   let hash, dict_count = Parser.hash filename ~window:2 in
   assert_equal gt_hash @@ hash;
   assert_equal gt_counts @@ Parser.dict_to_alist dict_count;
-  let hash, dict_count = Parser.hash ~chunk_size:5 filename ~window:2 in
+  let hash, dict_count = Parser.hash ~chunk_size:7 filename ~window:2 in
   assert_equal gt_hash @@ hash;
   assert_equal gt_counts @@ Parser.dict_to_alist dict_count
 
@@ -46,13 +46,14 @@ let test_trigger _ =
     (Fasta.Chunk.value (Fasta.FASTAStreamer.next streamer), false)
   in
   List.fold
-    ~init:(String.drop_prefix chunk 1, is_last_chunk)
-    ~f:(fun (chunk, is_last_chunk) t ->
-      let t', chunk, is_last_chunk =
-        Parser.trigger chunk 2 streamer is_last_chunk
+    ~init:(String.slice chunk 1 0, 0, 0, is_last_chunk)
+    ~f:(fun (chunk, phrase_start, phrase_end, is_last_chunk) t ->
+      let t', phrase_start, phrase_end, chunk, is_last_chunk =
+        Parser.trigger ~chunk ~phrase_start ~phrase_end ~window:2 streamer
+          is_last_chunk
       in
       assert_equal t @@ t';
-      (String.drop_prefix chunk 1, is_last_chunk))
+      (chunk, phrase_start, phrase_end + 1, is_last_chunk))
     [
       "GA";
       "AT";
