@@ -14,9 +14,5 @@ let () =
     In_channel.with_file target_file ~f:(fun channel ->
         In_channel.input_all channel)
   in
-  let sa = (GSACAK.getSA seq) |> Array.to_list in
-  let bwt = sa 
-  |> List.map ~f:(fun idx ->
-    if idx = 0 then '$' else String.get seq (idx - 1))
-|> String.of_char_list in
+  let bwt = GSACAK.getBWT seq in
   printf "%s%!" bwt

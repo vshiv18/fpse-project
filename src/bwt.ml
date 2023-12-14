@@ -24,9 +24,8 @@ let prepare_parse_dir (out_dir : string) : string =
 
 let do_parse_bwt (target : string) (window : int) (out_dir : string) : unit =
   let parse_dir = prepare_parse_dir out_dir in
-  let seq = In_channel.read_all target in
   printf "Read input sequence from: %s\n" target;
-  let parse = Parser.parse seq window in
+  let parse = Parser.parse target window in
   printf "Generated parse!";
   Parser.save_parse parse parse_dir;
   printf "Saved parse to %s\n" parse_dir;

@@ -146,7 +146,7 @@ end) : S = struct
       | Continue first_chunk -> (first_chunk, false)
       | Stop first_chunk -> (first_chunk, true)
     in
-    ( List.rev (f (0, 0) (String.slice first_chunk 1 0, is_last_chunk) []),
+    ( List.rev (f (0, 0) (first_chunk, is_last_chunk) []),
       dict_count )
 
   let parse (filename : string) (window : int) : parse =
