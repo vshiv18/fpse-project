@@ -1,9 +1,12 @@
 open Core
 
+module CharWT = BigBWT.Wavelet_tree.Make(Char)
+
 module FM_index = struct
-  type t = {bwt : string; c_arr : (char, int) Hashtbl.t}
+  type t = {bwt : CharWT; c_arr : (char, int) Hashtbl.t}
   
   let construct (text : string) : t =
+    let bwt_wt = text |> String.to_list |> CharWT.build in
     let counts =
       text |> String.to_list
           |> Hashtbl.group
@@ -19,11 +22,12 @@ module FM_index = struct
            ((ele, prior_before) :: char_before, next))
     in
     let c_map = c_starts |> List.rev |> Hashtbl.of_alist_exn (module Char) in
-    {bwt=text; c_arr=c_map}
+    {bwt=bwt_wt; c_arr=c_map}
 
   let exists _ _ = true
 
   let count _ _ = 0
 
-  (* let lf (fmi : t) (pattern : string) : int = 0 *)
+  let lf (fmi : t) (i : int) : int = 
+    CharWT.rank fmi.bwt i + Hashtbl.find_exn fmi.c_arr i in
 end
