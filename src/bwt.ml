@@ -22,7 +22,7 @@ let prepare_parse_dir (out_dir : string) : string =
       Core_unix.mkdir parse_dir;
       parse_dir
 
-let do_parse_bwt (target : string) (window : int) (out_dir : string): unit =
+let do_parse_bwt (target : string) (window : int) (out_dir : string) : unit =
   let parse_dir = prepare_parse_dir out_dir in
   printf "Read input sequence from: %s\n%!" target;
   let seq = In_channel.read_all target in
@@ -42,18 +42,17 @@ let do_bwt (parse_dir : string) (window : int) : unit =
   printf "BWT computed!\n%!"
 
 let do_run (input_fname : string option) (parse_dir : string option)
-    (window : int) (out_dir : string): unit =
+    (window : int) (out_dir : string) : unit =
   match get_do_mode input_fname parse_dir with
   | Make target -> do_parse_bwt target window out_dir
-  | Load parse_dir -> do_bwt parse_dir window 
+  | Load parse_dir -> do_bwt parse_dir window
   | None msg -> printf "Invalid arguments: %s\n%!" msg
 
 let command =
   Command.basic ~summary:"OCaml BigBWT"
     ~readme:(fun () -> "More detailed information")
     (let%map_open.Command input_fname =
-       flag "-i" (optional string)
-         ~doc:"string Path to file to compute parse of."
+       flag "-i" (optional string) ~doc:"string Path to file to compute BWT of."
      and parse_dir =
        flag "--from-parse" (optional string)
          ~doc:"string Path to directory to load parse from."
@@ -63,10 +62,6 @@ let command =
        flag "--out-dir"
          (optional_with_default "./" string)
          ~doc:"string Path to store parse results."
-      (* and chunk_size =
-      flag "-c"
-        (optional_with_default 4096 int)
-        ~doc:"Chunk size to read input for parse step." *)
      in
      fun () -> do_run input_fname parse_dir window out_dir)
 
