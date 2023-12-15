@@ -64,15 +64,10 @@ module FM_index = struct
     let chars, ints = fmi.c_arr |> Map.to_alist |> List.unzip in
     let oc_carr = Out_channel.create (filename ^ ".occ") in
     Marshal.to_channel oc_carr (chars, ints) [];
-    (* Serialize.StringSerializer.write (filename ^ ".f_char")  (String.of_list chars);
-    Serialize.Int32Serializer.write_list (filename ^ ".occ") ints; *)
     let oc = Out_channel.create (filename ^ ".wt") in
     Marshal.to_channel oc fmi.bwt []
 
   let deserialize (filename : string) : t =
-    (* let c_chars = Serialize.StringSerializer.read (filename ^ ".f_char") |> String.to_list in *)
-    (* let c_ints = Serialize.Int32Serializer.read_list (filename ^ ".occ") in *)
-    (* let c_map = (List.zip_exn c_chars c_ints) |> Hashtbl.of_alist_exn (module Char) in *)
     let (chars, ints) : ((char list) * (int list)) = Marshal.from_channel (In_channel.create (filename ^ ".occ")) in
     let c_map = CMap.of_alist_exn (List.zip_exn chars ints) in
     let wt : CharWT.t = Marshal.from_channel (In_channel.create (filename ^ ".wt")) in
