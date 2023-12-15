@@ -1,8 +1,7 @@
 open Core
 
-module CharWT = BigBWT.Wavelet_tree.Make(Char)
 
-module FM_index = struct
+(* module FM_index = struct
   type t = {bwt : CharWT; c_arr : (char, int) Hashtbl.t}
   
   let construct (text : string) : t =
@@ -29,5 +28,9 @@ module FM_index = struct
   let count _ _ = 0
 
   let lf (fmi : t) (i : int) : int = 
-    CharWT.rank fmi.bwt i + Hashtbl.find_exn fmi.c_arr i in
-end
+    (CharWT.rank fmi.bwt i) + (Hashtbl.find_exn fmi.c_arr i)
+
+  let lf_range (fmi : t) (range : int * int) (c : char) : (int, int) = 
+    if not Hashtbl.mem c then (1, 0)
+    let c_before = CharWT.rank
+end *)
