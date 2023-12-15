@@ -43,7 +43,7 @@ module FM_index = struct
   let count (fmi : t) (query : string) : int option = 
     query
     |> String.to_list_rev
-    |> List.fold_until ~init:((0, String.length query)) ~f:(fun range c ->
+    |> List.fold_until ~init:((0, CharWT.cardinal fmi.bwt - 1)) ~f:(fun range c ->
       let newstart, newend = lf_range fmi range c in
       if newend <= newstart then Stop (None) else Continue (newstart, newend)
       )
