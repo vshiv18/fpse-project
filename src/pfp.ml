@@ -315,7 +315,8 @@ end) : S = struct
               let () = process_alpha prev_alpha prev_phrases in
               (cur_suffix, [ phrase_id ]))
     in
-    process_alpha prev_alpha prev_phrases
+    process_alpha prev_alpha prev_phrases;
+    Out_channel.close file_handle 
   (* we get the reverse BWT as a list of chars, post-processing *)
 
   let getBWT input_string w =
