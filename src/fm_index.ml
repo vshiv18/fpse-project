@@ -64,7 +64,7 @@ module FM_index = struct
     Serialize.Int32Serializer.write_list filename ints;
     Marshal.to_channel oc fmi.bwt []
 
-  let load (filename : string) : t =
+  let deserialize (filename : string) : t =
     let ic = In_channel.create filename in
     let c_chars = Serialize.StringSerializer.read filename |> String.to_list in
     let c_ints = Serialize.Int32Serializer.read_list filename in
