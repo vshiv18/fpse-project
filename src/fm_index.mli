@@ -15,7 +15,7 @@
       val lf : t -> int -> int
 
       val serialize : t -> string -> unit
-      val load : string -> t
+      val deserialize : string -> t
     end
   
 (* The R_index implements the same pattern matching as an FM-index, but does so in runs-compressed space *)
