@@ -1,4 +1,10 @@
 (library
+ (name WaveletTree)
+ (modules select_support rank_support wavelet_tree)
+(libraries bitv)
+)
+
+(library
  (name serialize)
  (modules serialize)
  (libraries core)
@@ -23,17 +29,12 @@
 (library
  (name BigBWT)
  (modules naive_bwt pfp fm_index sais gsacak)
- (libraries core RollHash serialize fasta core_unix.sys_unix core_unix.command_unix)
+ (libraries core RollHash WaveletTree serialize fasta core_unix.sys_unix core_unix.command_unix )
  (foreign_stubs (language c) (names bindings gsacak) (flags -I. -fPIC))
  (c_library_flags (-O3 -std=c99))
  (preprocess
   (pps ppx_jane bisect_ppx)))
 
-(library
- (name WaveletTree)
- (modules select_support rank_support wavelet_tree)
-(libraries Bitv)
-)
 
 (executable
  (name bwt)

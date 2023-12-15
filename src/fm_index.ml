@@ -1,6 +1,6 @@
 open Core
 
-module CharWT = 
+module CharWT = WaveletTree.Wavelet_tree.Make(Char)
 
 module FM_index = struct
   type t = {bwt : CharWT.t; c_arr : (char, int) Hashtbl.t}
@@ -24,11 +24,6 @@ module FM_index = struct
     let c_map = c_starts |> List.rev |> Hashtbl.of_alist_exn (module Char) in
     {bwt=bwt_wt; c_arr=c_map}
 
-  let exists (fmi : t) (query : string) = 
-    match count fmi query with 
-    | Some _ -> true
-    | None -> false
-
   let count (fmi : t) (query : string) : int option = 
     query
     |> String.to_list_rev
@@ -37,6 +32,11 @@ module FM_index = struct
       if newend <= newstart then Stop (None) else Continue (newstart, newend)
       )
       ~finish:(fun (s, e) -> Some e - s + 1)
+      
+    let exists (fmi : t) (query : string) = 
+      match count fmi query with 
+      | Some _ -> true
+      | None -> false
 
   let lf (fmi : t) (i : int) : int = 
     (CharWT.rank fmi.bwt i) + (Hashtbl.find_exn fmi.c_arr i)
