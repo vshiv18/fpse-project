@@ -9,12 +9,15 @@ files = sys.argv[3:]
 
 
 seqs = []
+ids = set([])
 for fname in files:
     a = SeqIO.parse(fname, 'fasta')
     for l in a:
         # with open(os.path.join(outdir, l.id + '.fasta'), 'w') as out:
             # out.write(''.join([c for c in str(l.seq).upper() if c in ['A', 'T', 'C', 'G']]))
-        seqs.append(''.join([c for c in str(l.seq).upper() if c in ['A', 'T', 'C', 'G']]))
+        if l.id not in ids:
+            seqs.append(''.join([c for c in str(l.seq).upper() if c in ['A', 'T', 'C', 'G']]))
+            ids.add(l.id)
         
 steps = range(1, len(seqs) + 1) if steps == "--all" else [int(x) for x in steps.split(',')]
 
