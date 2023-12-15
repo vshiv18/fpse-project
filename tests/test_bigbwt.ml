@@ -93,7 +93,7 @@ let test_sais_bwt _ =
 module PfpBWT = PFP (RollHash.Hash.DefaultHasher)
 
 let test_pfp_bwt _ =
-  assert_equal (PfpBWT.getBWT paper_T 10) paper_BWT;
+  assert_equal (PfpBWT.getBWT paper_T 2) paper_BWT;
   assert_equal (PfpBWT.getBWT small 10) small_BWT;
   assert_equal (PfpBWT.getBWT seq 10) seq_BWT
 

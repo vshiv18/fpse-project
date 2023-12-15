@@ -1,5 +1,5 @@
 (tests
- (names test_bigbwt)
+ (names test_fasta test_serialize test_bigbwt)
  (deps
   (glob_files_rec ./data/*))
  (libraries core serialize fasta BigBWT ounit2)
