@@ -16,8 +16,8 @@ module type S = sig
     text * int * int * text * bool
 
   val sorted_phrases : dict -> text list
-  val hash : ?chunk_size:int -> string -> window:int -> int list * dict
-  val parse : string -> int -> parse
+  val hash : int -> string -> window:int -> int list * dict
+  val parse : ?chunk_size:int -> string -> int -> parse
   val buildText : string -> text
 
   (* Given the dictionary and parse of the BWT, use it to compute the BWT of the original text *)

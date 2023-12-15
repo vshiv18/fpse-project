@@ -21,8 +21,8 @@ module type S = sig
     text * int * int * text * bool
 
   val sorted_phrases : dict -> text list
-  val hash : ?chunk_size:int -> string -> window:int -> int list * dict
-  val parse : string -> int -> parse
+  val hash : int -> string -> window:int -> int list * dict
+  val parse : ?chunk_size:int -> string -> int -> parse
   val buildText : string -> text
   val parse_to_BWT : Out_channel.t -> parse -> int -> unit
   val getBWT : text -> int -> string
@@ -94,6 +94,7 @@ end) : S = struct
           | Stop next_chunk ->
               (String.slice chunk phrase_start 0 ^ next_chunk, true)
         in
+        printf "called next chunk\n%!";
         let phrase_start, phrase_end = (0, phrase_end - phrase_start) in
         ( String.slice chunk phrase_end (phrase_end + window),
           phrase_start,
@@ -107,7 +108,7 @@ end) : S = struct
         chunk,
         is_last_chunk )
 
-  let hash ?(chunk_size = default_chunk_size) (filename : string)
+  let hash (chunk_size : int) (filename : string)
       ~(window : int) : int list * dict =
     let streamer = initialize_streamer filename ~chunk_size in
     let terminator = String.pad_right ~char:'$' "" ~len:window in
@@ -149,8 +150,8 @@ end) : S = struct
     ( List.rev (f (0, 0) (first_chunk, is_last_chunk) []),
       dict_count )
 
-  let parse (filename : string) (window : int) : parse =
-    let hash, dict_count = hash filename ~window in
+  let parse ?(chunk_size = default_chunk_size) (filename : string) (window : int) : parse =
+    let hash, dict_count = hash chunk_size filename ~window in
     let phrases = sorted_phrases dict_count in
     let parse = sorted_parse phrases hash in
     let freqs = sorted_freqs phrases dict_count in

@@ -7,7 +7,7 @@ let get_do_mode (input_fname : string option) (parse_dir : string option) =
   match (input_fname, parse_dir) with
   | Some target, None -> Make target
   | Some _, Some parse_dir ->
-      printf "Overwriting parse_dir in %s\n" parse_dir;
+      printf "Overwriting parse_dir in %s\n%!" parse_dir;
       Load parse_dir
   | None, Some parse_dir -> Load parse_dir
   | _ -> None "Exactly one of -i input_file or --parse_dir needs to be set"
@@ -22,30 +22,30 @@ let prepare_parse_dir (out_dir : string) : string =
       Core_unix.mkdir parse_dir;
       parse_dir
 
-let do_parse_bwt (target : string) (window : int) (out_dir : string) : unit =
+let do_parse_bwt (target : string) (window : int) (out_dir : string) (chunk_size : int): unit =
   let parse_dir = prepare_parse_dir out_dir in
-  printf "Read input sequence from: %s\n" target;
-  let parse = Parser.parse target window in
-  printf "Generated parse!";
+  printf "Read input sequence from: %s\n%!" target;
+  let parse = Parser.parse ~chunk_size:chunk_size target window in
+  printf "Generated parse!%!";
   Parser.save_parse parse parse_dir;
-  printf "Saved parse to %s\n" parse_dir;
+  printf "Saved parse to %s\n%!" parse_dir;
   let outfname = Out_channel.create (Filename.concat parse_dir "bwt") in
   Parser.parse_to_BWT outfname parse window;
   printf "BWT computed!\n%!"
 
 let do_bwt (parse_dir : string) (window : int) : unit =
   let parse = Parser.load_parse parse_dir in
-  printf "Loaded parse from %s\n" parse_dir;
+  printf "Loaded parse from %s\n%!" parse_dir;
   let outfname = Out_channel.create (Filename.concat parse_dir "bwt") in
   Parser.parse_to_BWT outfname parse window;
-  printf "BWT computed!\n"
+  printf "BWT computed!\n%!"
 
 let do_run (input_fname : string option) (parse_dir : string option)
-    (window : int) (out_dir : string) : unit =
+    (window : int) (out_dir : string) (chunk_size : int): unit =
   match get_do_mode input_fname parse_dir with
-  | Make target -> do_parse_bwt target window out_dir
-  | Load parse_dir -> do_bwt parse_dir window
-  | None msg -> printf "Invalid arguments: %s\n" msg
+  | Make target -> do_parse_bwt target window out_dir chunk_size
+  | Load parse_dir -> do_bwt parse_dir window 
+  | None msg -> printf "Invalid arguments: %s\n%!" msg
 
 let command =
   Command.basic ~summary:"OCaml BigBWT"
@@ -62,7 +62,11 @@ let command =
        flag "--out-dir"
          (optional_with_default "./" string)
          ~doc:"string Path to store parse results."
+      and chunk_size =
+      flag "-c"
+        (optional_with_default 4096 int)
+        ~doc:"Chunk size to read input for parse step."
      in
-     fun () -> do_run input_fname parse_dir window out_dir)
+     fun () -> do_run input_fname parse_dir window out_dir chunk_size)
 
 let () = Command_unix.run ~version:"1.0" ~build_info:"RWO" command

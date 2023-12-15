@@ -33,10 +33,10 @@ let test_hash _ =
       ("TGGATTAG", 1);
     ]
   in
-  let hash, dict_count = Parser.hash filename ~window:2 in
+  let hash, dict_count = Parser.hash 4096 filename ~window:2 in
   assert_equal gt_hash @@ hash;
   assert_equal gt_counts @@ Parser.dict_to_alist dict_count;
-  let hash, dict_count = Parser.hash ~chunk_size:7 filename ~window:2 in
+  let hash, dict_count = Parser.hash 7 filename ~window:2 in
   assert_equal gt_hash @@ hash;
   assert_equal gt_counts @@ Parser.dict_to_alist dict_count
 
