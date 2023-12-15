@@ -1,7 +1,8 @@
 open Core
 
+module CharWT = Wav
 
-(* module FM_index = struct
+module FM_index = struct
   type t = {bwt : CharWT; c_arr : (char, int) Hashtbl.t}
   
   let construct (text : string) : t =
@@ -33,4 +34,4 @@ open Core
   let lf_range (fmi : t) (range : int * int) (c : char) : (int, int) = 
     if not Hashtbl.mem c then (1, 0)
     let c_before = CharWT.rank
-end *)
+end
