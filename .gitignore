@@ -33,3 +33,6 @@ out
 chm13_chr19.fa
 .vscode
 _coverage
+benchmark/raw_fastas
+benchmark/cum_fastas
+benchmark/out
