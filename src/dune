@@ -9,14 +9,14 @@
  (modules serialize)
  (libraries core)
  (preprocess
-  (pps ppx_jane bisect_ppx)))
+  (pps ppx_jane)))
 
 (library
  (name fasta)
  (modules fasta)
  (libraries core)
  (preprocess
-  (pps ppx_jane bisect_ppx)))
+  (pps ppx_jane)))
 
 (library
  (name RollHash)
@@ -39,7 +39,7 @@
  (foreign_stubs (language c) (names bindings gsacak) (flags -I. -fPIC))
  (c_library_flags (-O3 -std=c99))
  (preprocess
-  (pps ppx_jane bisect_ppx)))
+  (pps ppx_jane)))
 
 
 (executable
