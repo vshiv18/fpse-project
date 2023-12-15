@@ -65,7 +65,7 @@ module FM_index = struct
     Marshal.to_channel oc fmi.bwt []
 
   let deserialize (filename : string) : t =
-    let c_chars = Serialize.StringSerializer.read (filename ^ "f.char") |> String.to_list in
+    let c_chars = Serialize.StringSerializer.read (filename ^ ".f_char") |> String.to_list in
     let c_ints = Serialize.Int32Serializer.read_list (filename ^ ".occ") in
     let c_map = (List.zip_exn c_chars c_ints) |> Hashtbl.of_alist_exn (module Char) in
     let ic = In_channel.create (filename ^ ".wt") in
