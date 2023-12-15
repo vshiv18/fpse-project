@@ -22,10 +22,11 @@ let prepare_parse_dir (out_dir : string) : string =
       Core_unix.mkdir parse_dir;
       parse_dir
 
-let do_parse_bwt (target : string) (window : int) (out_dir : string) (chunk_size : int): unit =
+let do_parse_bwt (target : string) (window : int) (out_dir : string): unit =
   let parse_dir = prepare_parse_dir out_dir in
   printf "Read input sequence from: %s\n%!" target;
-  let parse = Parser.parse ~chunk_size:chunk_size target window in
+  let seq = In_channel.read_all target in
+  let parse = Parser.parse seq window in
   printf "Generated parse!%!";
   Parser.save_parse parse parse_dir;
   printf "Saved parse to %s\n%!" parse_dir;
@@ -41,9 +42,9 @@ let do_bwt (parse_dir : string) (window : int) : unit =
   printf "BWT computed!\n%!"
 
 let do_run (input_fname : string option) (parse_dir : string option)
-    (window : int) (out_dir : string) (chunk_size : int): unit =
+    (window : int) (out_dir : string): unit =
   match get_do_mode input_fname parse_dir with
-  | Make target -> do_parse_bwt target window out_dir chunk_size
+  | Make target -> do_parse_bwt target window out_dir
   | Load parse_dir -> do_bwt parse_dir window 
   | None msg -> printf "Invalid arguments: %s\n%!" msg
 
@@ -62,11 +63,11 @@ let command =
        flag "--out-dir"
          (optional_with_default "./" string)
          ~doc:"string Path to store parse results."
-      and chunk_size =
+      (* and chunk_size =
       flag "-c"
         (optional_with_default 4096 int)
-        ~doc:"Chunk size to read input for parse step."
+        ~doc:"Chunk size to read input for parse step." *)
      in
-     fun () -> do_run input_fname parse_dir window out_dir chunk_size)
+     fun () -> do_run input_fname parse_dir window out_dir)
 
 let () = Command_unix.run ~version:"1.0" ~build_info:"RWO" command
