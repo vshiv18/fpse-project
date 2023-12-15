@@ -1,8 +1,12 @@
-type 'a chunk = Stop of 'a | Continue of 'a
+type 'a chunk = { contents : 'a; is_last : bool }
 
-module Chunk : sig
-  val value : 'a chunk -> 'a
+module type Chunk = sig
+  type t
+
+  val ( + ) : t chunk -> t chunk -> t chunk
 end
+
+module StringChunk : Chunk with type t = string
 
 module type S = sig
   type t = {
@@ -12,7 +16,7 @@ module type S = sig
     mutable char_in_sequence : bool;
   }
 
-  val create : ?chunk_size:int -> string -> t
+  val create : chunk_size:int -> string -> t
   val next : t -> string chunk
 end
 

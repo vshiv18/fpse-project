@@ -1,10 +1,21 @@
 open Core
 
-type 'a chunk = Stop of 'a | Continue of 'a
+type 'a chunk = { contents : 'a; is_last : bool }
 
-module Chunk = struct
-  let value (chunk : 'a chunk) : 'a =
-    match chunk with Stop v | Continue v -> v
+module type Chunk = sig
+  type t
+
+  val ( + ) : t chunk -> t chunk -> t chunk
+end
+
+module StringChunk : Chunk with type t = string = struct
+  type t = string
+
+  let ( + ) (chunk1 : 'a chunk) (chunk2 : 'a chunk) : 'a chunk =
+    {
+      contents = String.concat [ chunk1.contents; chunk2.contents ];
+      is_last = chunk2.is_last;
+    }
 end
 
 module type S = sig
@@ -15,7 +26,7 @@ module type S = sig
     mutable char_in_sequence : bool;
   }
 
-  val create : ?chunk_size:int -> string -> t
+  val create : chunk_size:int -> string -> t
   val next : t -> string chunk
 end
 
@@ -41,10 +52,10 @@ module FASTAStreamer = struct
     | 'T' -> Some T
     | _ -> None
 
-  let create ?(chunk_size = 100) (filename : string) : t =
+  let create ~(chunk_size : int) (filename : string) : t =
     {
       channel = In_channel.create filename;
-      buffer = Buffer.create chunk_size;
+      buffer = Buffer.create (Int.max 0 chunk_size);
       chunk_size;
       char_in_sequence = true;
     }
@@ -64,17 +75,23 @@ module FASTAStreamer = struct
 
   let parse (streamer : t) : string =
     String.filter
-      (Buffer.contents streamer.buffer
-      |> String.tr ~target:fasta_seq_separator ~replacement:parse_seq_separator
-      |> String.uppercase)
+      (if streamer.chunk_size = -1 then In_channel.input_all streamer.channel
+       else
+         Buffer.contents streamer.buffer
+         |> String.tr ~target:fasta_seq_separator
+              ~replacement:parse_seq_separator
+         |> String.uppercase)
       ~f:(parse_char streamer)
 
   let next (streamer : t) : string chunk =
-    Buffer.reset streamer.buffer;
-    match
-      In_channel.input_buffer streamer.channel streamer.buffer
-        ~len:streamer.chunk_size
-    with
-    | Some _ -> Continue (parse streamer)
-    | None -> Stop (parse streamer)
+    if streamer.chunk_size = -1 then
+      { contents = parse streamer; is_last = true }
+    else (
+      Buffer.reset streamer.buffer;
+      match
+        In_channel.input_buffer streamer.channel streamer.buffer
+          ~len:streamer.chunk_size
+      with
+      | Some _ -> { contents = parse streamer; is_last = false }
+      | None -> { contents = parse streamer; is_last = true })
 end

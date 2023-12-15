@@ -24,12 +24,12 @@ let prepare_parse_dir (input_fname : string) (out_dir : string) : string =
       Core_unix.mkdir parse_dir;
       parse_dir
 
-let do_parse_bwt (input_fname : string) (window : int) (out_dir : string) : unit
-    =
+let do_parse_bwt (input_fname : string) (chunk_size : int) (window : int)
+    (out_dir : string) : unit =
   let parse_dir = prepare_parse_dir input_fname out_dir in
   printf "Read input sequence from: %s\n%!" input_fname;
-  let parse = Parser.parse input_fname window in
-  printf "Generated parse!%!";
+  let parse = Parser.parse ~chunk_size input_fname ~window in
+  printf "Generated parse!\n%!";
   Parser.save_parse parse parse_dir;
   printf "Saved parse to %s\n%!" parse_dir;
   let outfname = Out_channel.create (Filename.concat parse_dir "bwt") in
@@ -43,10 +43,10 @@ let do_bwt (parse_dir : string) (window : int) : unit =
   Parser.parse_to_BWT outfname parse window;
   printf "BWT computed!\n"
 
-let do_run (input_fname : string option) (parse_dir : string option)
-    (window : int) (out_dir : string) : unit =
+let do_run (input_fname : string option) (chunk_size : int)
+    (parse_dir : string option) (window : int) (out_dir : string) : unit =
   match get_do_mode input_fname parse_dir with
-  | Make target -> do_parse_bwt target window out_dir
+  | Make target -> do_parse_bwt target chunk_size window out_dir
   | Load parse_dir -> do_bwt parse_dir window
   | None msg -> printf "Invalid arguments: %s\n" msg
 
@@ -56,6 +56,10 @@ let command =
     (let%map_open.Command input_fname =
        flag "-i" (optional string)
          ~doc:"string Path to file to compute parse of."
+     and chunk_size =
+       flag "--chunk-size"
+         (optional_with_default (-1) int)
+         ~doc:"int Chunk size."
      and parse_dir =
        flag "--from-parse" (optional string)
          ~doc:"string Path to directory to load parse from."
@@ -66,6 +70,6 @@ let command =
          (optional_with_default "./out" string)
          ~doc:"string Path to store parse results."
      in
-     fun () -> do_run input_fname parse_dir window out_dir)
+     fun () -> do_run input_fname chunk_size parse_dir window out_dir)
 
 let () = Command_unix.run ~version:"1.0" ~build_info:"RWO" command

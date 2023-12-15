@@ -38,8 +38,6 @@ module IntSequence :
   type t = Int.t Array.t
 
   let null = -1
-
-  (* let compare_suffixes idx1 idx2 *)
   let get (a : t) (n : int) = Array.get a n
   let length = Array.length
   let of_list = Array.of_list
@@ -70,8 +68,6 @@ module Text (Sequence : Sequence) = struct
 
   let getSA (t : text) =
     List.range 0 (Sequence.length t) |> List.sort ~compare:(compare t)
-
-  (* let getSuffix (t : text) (idx : int) : text = String.drop_prefix t idx *)
 
   let getBWT (seq : text) : text =
     let text = Sequence.of_seq seq in

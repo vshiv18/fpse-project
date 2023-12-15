@@ -1,11 +1,11 @@
 module type S = sig
   type text = string
   type dict
-  type parse = string list * int list * int list
+  type parse = { phrases : string list; freqs : int list; parse : int list }
 
   val dict_to_alist : dict -> (string * int) list
-  val initialize_streamer : string -> chunk_size:int -> Fasta.FASTAStreamer.t
-  val parse : string -> int -> parse
+  val initialize_streamer : chunk_size:int -> string -> Fasta.FASTAStreamer.t
+  val parse : ?chunk_size:int -> string -> window:int -> parse
   val buildText : string -> text
 
   (* Given the dictionary and parse of the BWT, use it to compute the BWT of the original text *)

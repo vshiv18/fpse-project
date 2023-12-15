@@ -6,11 +6,11 @@ open Fasta
 module type S = sig
   type text = string
   type dict
-  type parse = string list * int list * int list
+  type parse = { phrases : string list; freqs : int list; parse : int list }
 
   val dict_to_alist : dict -> (string * int) list
-  val initialize_streamer : string -> chunk_size:int -> Fasta.FASTAStreamer.t
-  val parse : string -> int -> parse
+  val initialize_streamer : chunk_size:int -> string -> Fasta.FASTAStreamer.t
+  val parse : ?chunk_size:int -> string -> window:int -> parse
   val buildText : string -> text
   val parse_to_BWT : Out_channel.t -> parse -> int -> unit
   val getBWT : text -> int -> string
@@ -22,23 +22,22 @@ module PFP (Hash : sig
   val is_trigger_string : string -> bool
 end) : S = struct
   type text = string
+  type phrase = { first : bool; start_pos : int; end_pos : int }
+  type parse = { phrases : string list; freqs : int list; parse : int list }
 
   module Dict = Hashtbl.Make (String)
 
   type dict = int Dict.t
-  type parse = string list * int list * int list
 
   module ParseMapper = Map.Make (String)
   module IntBWT = Naive_bwt.Text (Naive_bwt.IntSequence)
   module StringBWT = Naive_bwt.Text (Naive_bwt.CharSequence)
 
-  let default_chunk_size = 100000000
-
   let dict_to_alist (dict : dict) : (string * int) list =
     Hashtbl.to_alist dict
     |> List.sort ~compare:(fun (s1, _) (s2, _) -> String.compare s1 s2)
 
-  let initialize_streamer (filename : string) ~(chunk_size : int) :
+  let initialize_streamer ~(chunk_size : int) (filename : string) :
       FASTAStreamer.t =
     FASTAStreamer.create ~chunk_size filename
 
@@ -59,71 +58,118 @@ end) : S = struct
     in
     idx
 
-  let parse (filename : string) (window : int) : parse =
+  let parse ?(chunk_size = -1) (filename : string) ~(window : int) : parse =
     let sep = '$' in
     let terminator = repeat sep window in
     let dict_count = Hashtbl.create (module String) in
-    let streamer =
-      initialize_streamer filename ~chunk_size:default_chunk_size
-    in
-    let chunk, is_last_chunk =
-      match FASTAStreamer.next streamer with
-      | Continue chunk -> (chunk, false)
-      | Stop chunk -> (chunk, true)
-    in
-    assert is_last_chunk;
-    let rec helper (parse : int list) ((phrase_start, phrase_end) : int * int)
-        (phrase_count : int) ((chunk, is_last_chunk) : text * bool) : int list =
-      if phrase_end > String.length chunk then parse
+    let streamer = initialize_streamer filename ~chunk_size in
+    let rec f (phrase : phrase) (chunk : string chunk)
+        (next_chunk : string chunk option) (parse : int list) : int list =
+      if phrase.end_pos > String.length chunk.contents && chunk.is_last then
+        parse
       else
-        let cur_trigger, chunk =
-          if phrase_end + window > String.length chunk then
-            if is_last_chunk then
-              (fill (String.slice chunk phrase_end 0) sep window, chunk)
+        let chunk, next_chunk =
+          if chunk.is_last then (chunk, None)
+          else
+            let trigger_end = phrase.end_pos + window in
+            if trigger_end > String.length chunk.contents then
+              match next_chunk with
+              | None -> (chunk, Some (FASTAStreamer.next streamer))
+              | _ -> (chunk, next_chunk)
+            else (chunk, next_chunk)
+        in
+        let trigger, is_trigger_across_chunks =
+          let trigger_end = phrase.end_pos + window in
+          if trigger_end > String.length chunk.contents then
+            if chunk.is_last then
+              ( fill (String.slice chunk.contents phrase.end_pos 0) sep window,
+                false )
             else
-              let chunk, is_last_chunk =
-                match FASTAStreamer.next streamer with
-                | Continue next_chunk ->
-                    ( String.concat
-                        [ String.slice chunk phrase_end 0; next_chunk ],
-                      false )
-                | Stop next_chunk ->
-                    ( String.concat
-                        [ String.slice chunk phrase_end 0; next_chunk ],
-                      true )
+              let next_chunk = Option.value_exn next_chunk in
+              let end_first = String.slice chunk.contents phrase.end_pos 0 in
+              let start_second =
+                String.slice next_chunk.contents 0
+                  (window - String.length end_first)
               in
-              let phrase_start, phrase_end = (0, phrase_end - phrase_start) in
-              (String.slice chunk phrase_end (phrase_end + window), chunk)
-          else (String.slice chunk phrase_end (phrase_end + window), chunk)
+              (String.concat [ end_first; start_second ], true)
+          else (String.slice chunk.contents phrase.end_pos trigger_end, false)
         in
         match
-          String.( = ) cur_trigger terminator
-          || Hash.is_trigger_string cur_trigger
+          String.( = ) trigger terminator || Hash.is_trigger_string trigger
         with
         | false ->
-            helper parse
-              (phrase_start, phrase_end + 1)
-              phrase_count (chunk, is_last_chunk)
+            if is_trigger_across_chunks then
+              let next_chunk = Option.value_exn next_chunk in
+              f
+                {
+                  first = phrase.first;
+                  start_pos = 0;
+                  end_pos = phrase.end_pos - phrase.start_pos;
+                }
+                {
+                  contents =
+                    String.concat
+                      [
+                        String.slice chunk.contents phrase.start_pos 0;
+                        next_chunk.contents;
+                      ];
+                  is_last = next_chunk.is_last;
+                }
+                None parse
+            else
+              f
+                {
+                  first = phrase.first;
+                  start_pos = phrase.start_pos;
+                  end_pos = phrase.end_pos + 1;
+                }
+                chunk next_chunk parse
         | true ->
             let final_phrase =
-              let final_phrase =
-                if phrase_end + window > String.length chunk then
-                  String.slice chunk phrase_start 0 ^ terminator
-                else String.slice chunk phrase_start (phrase_end + window)
-              in
-              if phrase_start = 0 then String.of_char sep ^ final_phrase
+              String.concat
+                [
+                  String.slice chunk.contents phrase.start_pos phrase.end_pos;
+                  trigger;
+                ]
+            in
+            let final_phrase =
+              if phrase.first then
+                String.concat [ String.of_char sep; final_phrase ]
               else final_phrase
             in
             let idx = update_dict dict_count final_phrase in
-            helper (idx :: parse)
-              (phrase_end, phrase_end + 1)
-              phrase_count (chunk, is_last_chunk)
+            if is_trigger_across_chunks then
+              let next_chunk = Option.value_exn next_chunk in
+              f
+                { first = false; start_pos = 0; end_pos = 1 }
+                {
+                  contents =
+                    String.concat
+                      [
+                        String.slice chunk.contents phrase.end_pos 0;
+                        next_chunk.contents;
+                      ];
+                  is_last = next_chunk.is_last;
+                }
+                None (idx :: parse)
+            else
+              f
+                {
+                  first = false;
+                  start_pos = phrase.end_pos;
+                  end_pos = phrase.end_pos + 1;
+                }
+                chunk next_chunk (idx :: parse)
     in
-    let parse = List.rev (helper [] (0, 0) 0 (chunk, is_last_chunk)) in
+    let first_chunk = FASTAStreamer.next streamer in
+    let parse =
+      List.rev
+        (f { first = true; start_pos = 0; end_pos = 0 } first_chunk None [])
+    in
     let phrases =
       dict_count |> Hashtbl.keys |> List.sort ~compare:String.compare
     in
-    let () = printf "number of phrases: %d\n%!" (List.length phrases) in
+    let () = printf "Number of phrases: %d\n%!" (List.length phrases) in
     let parse =
       let sorted_parsemap =
         phrases
@@ -142,7 +188,7 @@ end) : S = struct
              let _, freq = Hashtbl.find_exn dict_count p in
              freq)
     in
-    (phrases, freqs, parse)
+    { phrases; freqs; parse }
 
   let buildText (text : string) : text = text
 
@@ -183,11 +229,11 @@ end) : S = struct
   (* TODO: *)
   let parse_to_BWT (file_handle : Out_channel.t) (parse : parse) (w : int) :
       unit =
-    let phrases, _, parse = parse in
+    (* let phrases, _, parse = parse in *)
     (* let freqs = Array.of_list freqs in *)
-    let phrases = Array.of_list phrases in
+    let phrases = Array.of_list parse.phrases in
     let phrase_lengths = phrases |> Array.map ~f:String.length in
-    let parse = parse |> IntSequence.of_list in
+    let parse = parse.parse |> IntSequence.of_list in
     let parseSA =
       parse |> Array.map ~f:(fun x -> x + 1) |> Gsacak.GSACAK.getSA_int
     in
@@ -356,21 +402,22 @@ end) : S = struct
   (* we get the reverse BWT as a list of chars, post-processing *)
 
   let getBWT input_string w =
-    let p = parse input_string w in
+    let p = parse input_string ~window:w in
     parse_to_BWT (Out_channel.create "temp") p w;
     let bwt = In_channel.read_all "temp" in
     Core_unix.remove "temp";
     bwt
 
   let save_parse (parse : parse) (out_dir : string) : unit =
-    let dict, freq, parse = parse in
-    StringSerializer.write_list (Filename.concat out_dir "dict") dict;
-    Int32Serializer.write_list (Filename.concat out_dir "freq") freq;
-    Int32Serializer.write_list (Filename.concat out_dir "parse") parse
+    StringSerializer.write_list (Filename.concat out_dir "dict") parse.phrases;
+    Int32Serializer.write_list (Filename.concat out_dir "freq") parse.freqs;
+    Int32Serializer.write_list (Filename.concat out_dir "parse") parse.parse
 
-  let load_parse (parse_dir : string) =
-    let dict = StringSerializer.read_list (Filename.concat parse_dir "dict") in
-    let freq = Int32Serializer.read_list (Filename.concat parse_dir "freq") in
+  let load_parse (parse_dir : string) : parse =
+    let phrases =
+      StringSerializer.read_list (Filename.concat parse_dir "dict")
+    in
+    let freqs = Int32Serializer.read_list (Filename.concat parse_dir "freq") in
     let parse = Int32Serializer.read_list (Filename.concat parse_dir "parse") in
-    (dict, freq, parse)
+    { phrases; freqs; parse }
 end

@@ -1,24 +1,24 @@
-(* open Core
-   open OUnit2
-   open BigBWT.Pfp
+open Core
+open OUnit2
+open BigBWT.Pfp
 
-   module TestHash = struct
-     let is_trigger_string s =
-       List.mem [ "AC"; "AG"; "TG"; "$$" ] s ~equal:String.( = )
-   end
+module TestHash = struct
+  let is_trigger_string s =
+    List.mem [ "AC"; "AG"; "TG"; "$$" ] s ~equal:String.( = )
+end
 
-   let filename = "./data/parse.test"
+let filename = "./data/parse.test"
 
-   module Parser = PFP (TestHash)
+module Parser = PFP (TestHash)
 
-   let test_correctness _ =
-     let phrases, freqs, parse = Parser.parse filename 2 in
-     assert_equal [ "$GATTAC"; "ACATG"; "AGATA$$"; "TGGATAC"; "TGGATTAG" ]
-     @@ phrases;
-     assert_equal [ 1; 2; 1; 1; 1 ] @@ freqs;
-     assert_equal [ 0; 1; 3; 1; 4; 2 ] @@ parse
+let test_correctness _ =
+  let parse = Parser.parse filename ~window:2 in
+  assert_equal [ "$GATTAC"; "ACATG"; "AGATA$$"; "TGGATAC"; "TGGATTAG" ]
+  @@ parse.phrases;
+  assert_equal [ 1; 2; 1; 1; 1 ] @@ parse.freqs;
+  assert_equal [ 0; 1; 3; 1; 4; 2 ] @@ parse.parse
 
-   let test_hash _ =
+(* let test_hash _ =
      let gt_hash =
        List.map
          ~f:(fun p -> Hashtbl.hash p)
@@ -83,15 +83,15 @@
          "A$";
          "$$";
        ]
-     |> ignore
+     |> ignore *)
 
-   let pfp_tests =
-     "PFP tests"
-     >::: [
-            "test correctness" >:: test_correctness;
-            "test hash" >:: test_hash;
-            "test trigger" >:: test_trigger;
-          ]
+let pfp_tests =
+  "PFP tests"
+  >::: [
+         "test correctness" >:: test_correctness;
+         (* "test hash" >:: test_hash; *)
+         (* "test trigger" >:: test_trigger; *)
+       ]
 
-   let series = "PFP tests" >::: [ pfp_tests ]
-   let () = run_test_tt_main series *)
+let series = "PFP tests" >::: [ pfp_tests ]
+let () = run_test_tt_main series
