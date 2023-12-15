@@ -56,11 +56,11 @@ Found `GAT` at positions 0, 9, 18, 23
 - [x] Implement a naive BWT algorithm.
 - [x] Implement a PFP algorithm with underlying hashing library.
 - [x] Implement an efficient BWT algorithm using PFP.
-- [ ] Implement FM-index.
+- [x] Implement FM-index.
 - [ ] Implement r-index.
-- [ ] Implement serialization functions for both indices.
-- [ ] Implement command-line interface to build indices.
-- [ ] Implement command-line interface to query indices.
+- [x] Implement serialization functions for both indices.
+- [x] Implement command-line interface to build indices.
+- [x] Implement command-line interface to query indices.
 
 Potential extensions:
 
