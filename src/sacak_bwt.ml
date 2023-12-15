@@ -2,9 +2,7 @@ open BigBWT.Gsacak
 open Core
 
 let prepare_parse_dir (out_dir : string) : string =
-  (* let target_name, _ = let _, fname = Filename.split target in Filename.split_extension fname in *)
   let parse_dir = out_dir in
-  (* let parse_dir = Filename.concat out_dir target_name in *)
   match Sys_unix.file_exists parse_dir with
   | `Yes -> parse_dir
   | `No | `Unknown ->

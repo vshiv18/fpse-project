@@ -4,7 +4,6 @@ module type S = sig
   type parse = string list * int list * int list
 
   val dict_to_alist : dict -> (string * int) list
-
   val parse : ?verbose:bool -> string -> int -> parse
   val buildText : string -> text
 

@@ -48,7 +48,7 @@ module MakeRollHash (P : Params) : S = struct
   let prev_hash (str : string) (last : int) =
     mul last b_inv |> add (Char.to_int (String.get str 0))
 
-  let is_trigger_string (str : string) = Int.( = ) 0 @@ (hash str) mod P.modulus
+  let is_trigger_string (str : string) = Int.( = ) 0 @@ (hash str mod P.modulus)
 end
 
 module DefaultHasher = MakeRollHash (Default)

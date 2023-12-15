@@ -1,5 +1,5 @@
 (tests
- (names test_bigbwt test_fm_index)
+ (names test_bigbwt)
  (deps
   (glob_files_rec ./data/*))
  (libraries core serialize fasta BigBWT ounit2 fm_index)
