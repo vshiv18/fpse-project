@@ -31,7 +31,13 @@ module FM_index = struct
   let lf (fmi : t) (i : int) : int = 
     (CharWT.rank fmi.bwt i) + (Hashtbl.find_exn fmi.c_arr i)
 
-  let lf_range (fmi : t) (range : int * int) (c : char) : (int, int) = 
+  let lf_range (fmi : t) (range : int * int) (c : char) : (int * int) = 
     if not Hashtbl.mem c then (1, 0)
-    let c_before = CharWT.rank
+    else
+    let top, bottom = range in
+    let c_before = CharWT.rank fmi.bwt c top in
+    let c_inside = CharWT.rank fmi.bwt c (bottom + 1) - c_before in
+    let f_col = Hashtbl.find_exn fmi.c_arr c in
+    (c_before + f_col, c_before + c_inside + f_col - 1)
+
 end

@@ -32,7 +32,7 @@
 (library
  (name WaveletTree)
  (modules rank_support wavelet_tree)
-(libraries Bitv)
+(libraries bitv)
 )
 
 (executable
