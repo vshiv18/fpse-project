@@ -28,7 +28,7 @@
 (library
  (name fm_index)
  (modules fm_index)
- (libraries core WaveletTree)
+ (libraries core WaveletTree serialize)
  (preprocess
   (pps ppx_jane)))
 
@@ -40,7 +40,6 @@
  (c_library_flags (-O3 -std=c99))
  (preprocess
   (pps ppx_jane bisect_ppx)))
-
 
 (executable
  (name bwt)

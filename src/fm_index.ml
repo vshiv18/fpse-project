@@ -57,4 +57,18 @@ module FM_index = struct
   let lf (fmi : t) (i : int) : int = 
     (rank_exn fmi.bwt (CharWT.access fmi.bwt i) i) + (Hashtbl.find_exn fmi.c_arr (CharWT.access fmi.bwt i))
 
-end
+  let serialize (fmi : t) (filename : string) =
+    let oc = Out_channel.create filename in
+    let chars, ints = fmi.c_arr |> Hashtbl.to_alist |> List.unzip in
+    Serialize.StringSerializer.write filename (String.of_list chars);
+    Serialize.Int32Serializer.write_list filename ints;
+    Marshal.to_channel oc fmi.bwt []
+
+  let load (filename : string) : t =
+    let ic = In_channel.create filename in
+    let c_chars = Serialize.StringSerializer.read filename |> String.to_list in
+    let c_ints = Serialize.Int32Serializer.read_list filename in
+    let c_map = (List.zip_exn c_chars c_ints) |> Hashtbl.of_alist_exn (module Char) in
+    let wt : CharWT.t = Marshal.from_channel ic in
+    {bwt=wt; c_arr=c_map}
+  end
