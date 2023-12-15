@@ -22,16 +22,20 @@ let build input_fname out_prefix =
   let outfname = Out_channel.create (out_prefix ^ ".bwt") in
   Parser.parse_to_BWT outfname parse window;
   printf "BWT computed!\n%!"; 
-  let _ = FM_index.construct_from_file (out_prefix ^ ".bwt") in
-  (* serialize fmi in *)
-  printf "FM Index built!\n%!" 
+  printf "FM index computed!\n%!"
 
-let query _ _ = ()
+let query index pattern = 
+  let fmi = FM_index.of_file (index ^ ".bwt") in
+  let query = pattern in
+  match FM_index.count fmi query with
+  | Some x -> printf "Found pattern with %d occurences!\n%!" x
+  | None -> printf "Pattern not found!\n%!"
+
 
 let run mode out_prefix = 
   match mode with 
   | Build input_fname -> build (Option.value_exn input_fname) out_prefix
-  | Query (index, pattern_fname) -> query (Option.value_exn index) (Option.value_exn pattern_fname)
+  | Query (index, pattern) -> query (Option.value_exn index) (Option.value_exn pattern)
 
 
 
@@ -44,7 +48,7 @@ let command =
     and input_fname =
        flag "-i" (optional string)
          ~doc:"string path to file to index."
-    and pattern_fname = 
+    and pattern = 
        flag "-p" (optional string)
          ~doc:"string path to file for pattern."
     and out_prefix =
@@ -52,7 +56,7 @@ let command =
       (optional_with_default "./index" string)
       ~doc:"string Path to store parse results."
      in
-     let mode = match mode with | "build" -> Build input_fname | "run" -> Query (input_fname, pattern_fname) | _ -> failwith "[build|run] mode required!" in
+     let mode = match mode with | "build" -> Build input_fname | "run" -> Query (input_fname, pattern) | _ -> failwith "[build|run] mode required!" in
     fun () -> run mode out_prefix)
 
 let () = Command_unix.run ~version:"1.0" ~build_info:"RWO" command

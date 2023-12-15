@@ -26,11 +26,11 @@ module FM_index = struct
     let c_map = c_starts |> List.rev |> Hashtbl.of_alist_exn (module Char) in
     {bwt=bwt_wt; c_arr=c_map}
 
-  let construct_from_file (fname : string) = 
+  let of_file (fname : string) = 
     fname
     |> In_channel.read_all  
     |> construct
-    
+
   let lf_range (fmi : t) (range : int * int) (c : char) : (int * int) = 
     if not (Hashtbl.mem fmi.c_arr c) then (1, 0)
     else
