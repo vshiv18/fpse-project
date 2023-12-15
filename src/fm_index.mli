@@ -5,10 +5,14 @@
       type t
       (** [construct str] returns the FM index object for [str]  **)
       val construct : string -> t
+      val construct_from_file : string -> t
       (** [count str] returns the number of occurrences of [str] within the text **)
       val exists : t -> string -> bool
       (** [count index str] returns the number of occurrences of [str] within the [index] **)
-      val count : t -> string -> int
+      val count : t -> string -> int option
+
+      val lf_range : t -> int * int -> char -> int * int
+      val lf : t -> int -> int
     end
   
 (* The R_index implements the same pattern matching as an FM-index, but does so in runs-compressed space *)
