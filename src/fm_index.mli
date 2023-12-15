@@ -19,7 +19,7 @@
     end
   
 (* The R_index implements the same pattern matching as an FM-index, but does so in runs-compressed space *)
-module R_index (_ : sig
+(* module R_index (_ : sig
     val rank : char -> int -> int
     val access : int -> char
     val select : char -> int -> int
@@ -30,4 +30,4 @@ end) :
     val extract : int -> int -> string
     val lf : int -> int
     val lf_c : int -> char -> int
-end
+end *)
