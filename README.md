@@ -23,6 +23,8 @@ With this, we will create a library for exact string matching over the BWT using
 1. [Biocaml](https://github.com/biocaml/biocaml) to parse FASTA files. We were able to install this library, and we included tests for its FASTA parsing functionalities in `tests/fasta.ml`.
 2. [Wavelet trees](https://github.com/dymil/wavelet-trees) to implement one of the underlying data structures for the indices. We were able to install this library and run its benchmarks.
 
+We copied over the source code from the above Wavelet tree library to be built under our dune structure.
+
 ---
 
 ## Usage

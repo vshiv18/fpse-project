@@ -1,11 +1,7 @@
-(test
- (name test_fasta)
- (modules test_fasta)
- (libraries core ounit2 fasta)
+(tests
+ (names test_fasta test_serialize test_bigbwt test_fm_index)
  (deps
-  (glob_files_rec ./fasta.test)))
-
-(test
- (name test_bigbwt)
- (modules test_bigbwt)
- (libraries core ounit2 BigBWT))
+  (glob_files_rec ./data/*))
+ (libraries core serialize fasta BigBWT ounit2 fm_index)
+ (preprocess
+  (pps ppx_jane)))

@@ -7,23 +7,31 @@ module Chunk = struct
     match chunk with Stop v | Continue v -> v
 end
 
-module type FASTAStreamerConfig = sig
-  val filename : string
-  val chunk_size : int
-end
-
 module type S = sig
-  val next : unit -> string chunk
+  type t = {
+    channel : In_channel.t;
+    buffer : Buffer.t;
+    chunk_size : int;
+    mutable char_in_sequence : bool;
+  }
+
+  val create : ?chunk_size:int -> string -> t
+  val next : t -> string chunk
 end
 
-module FASTAStreamer (Config : FASTAStreamerConfig) : S = struct
+module FASTAStreamer = struct
+  type t = {
+    channel : In_channel.t;
+    buffer : Buffer.t;
+    chunk_size : int;
+    mutable char_in_sequence : bool;
+  }
+
   type nucleotide = A | C | G | T
 
   let fasta_seq_separator : char = '>'
   let parse_seq_separator : char = '$'
   let new_line : char = '\n'
-  let char_in_sequence = ref true
-  let toggle_char_in_sequence () = char_in_sequence := not !char_in_sequence
 
   let nucleotide_of_char (c : char) : nucleotide option =
     match c with
@@ -33,32 +41,40 @@ module FASTAStreamer (Config : FASTAStreamerConfig) : S = struct
     | 'T' -> Some T
     | _ -> None
 
-  let channel : In_channel.t = In_channel.create Config.filename
-  let buffer : Buffer.t = Buffer.create Config.chunk_size
+  let create ?(chunk_size = 100) (filename : string) : t =
+    {
+      channel = In_channel.create filename;
+      buffer = Buffer.create chunk_size;
+      chunk_size;
+      char_in_sequence = true;
+    }
 
-  let parse_char (c : char) : bool =
-    match !char_in_sequence with
+  let parse_char (streamer : t) (c : char) : bool =
+    match streamer.char_in_sequence with
     | true -> (
         if Char.equal c parse_seq_separator then (
-          toggle_char_in_sequence ();
+          streamer.char_in_sequence <- not streamer.char_in_sequence;
           true)
         else match nucleotide_of_char c with Some _ -> true | None -> false)
     | false ->
         if Char.equal c new_line then (
-          toggle_char_in_sequence ();
+          streamer.char_in_sequence <- not streamer.char_in_sequence;
           false)
         else false
 
-  let parse_buffer (buffer : Buffer.t) : string =
+  let parse (streamer : t) : string =
     String.filter
-      (Buffer.contents buffer
+      (Buffer.contents streamer.buffer
       |> String.tr ~target:fasta_seq_separator ~replacement:parse_seq_separator
       |> String.uppercase)
-      ~f:parse_char
+      ~f:(parse_char streamer)
 
-  let next () : string chunk =
-    Buffer.reset buffer;
-    match In_channel.input_buffer channel buffer ~len:Config.chunk_size with
-    | Some _ -> Continue (parse_buffer buffer)
-    | None -> Stop (parse_buffer buffer)
+  let next (streamer : t) : string chunk =
+    Buffer.reset streamer.buffer;
+    match
+      In_channel.input_buffer streamer.channel streamer.buffer
+        ~len:streamer.chunk_size
+    with
+    | Some _ -> Continue (parse streamer)
+    | None -> Stop (parse streamer)
 end

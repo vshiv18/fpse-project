@@ -2,7 +2,7 @@ open Core
 
 module type Sequence = sig
   module Item : sig
-    type t [@@deriving compare]
+    type t [@@deriving compare, sexp, hash]
   end
 
   type t
@@ -11,17 +11,14 @@ module type Sequence = sig
   val get : t -> int -> Item.t
   val length : t -> int
   val of_list : Item.t list -> t
+  val to_list : t -> Item.t list
   val of_seq : t -> t
   val fold : t -> init:'acc -> f:('acc -> Item.t -> 'acc) -> 'acc
 end
 
 module CharSequence : Sequence with type t = string and type Item.t = char =
 struct
-  module Item = struct
-    type t = char
-
-    let compare = Char.compare
-  end
+  module Item = Char
 
   type t = string
 
@@ -29,17 +26,14 @@ struct
   let get s idx = s.[idx]
   let length = String.length
   let of_list = String.of_char_list
+  let to_list = String.to_list
   let of_seq (s : string) : t = s
   let fold = String.fold
 end
 
 module IntSequence :
   Sequence with type t = Int.t Array.t and type Item.t = int = struct
-  module Item = struct
-    type t = int
-
-    let compare = Int.compare
-  end
+  module Item = Int
 
   type t = Int.t Array.t
 
@@ -49,6 +43,7 @@ module IntSequence :
   let get (a : t) (n : int) = Array.get a n
   let length = Array.length
   let of_list = Array.of_list
+  let to_list = Array.to_list
   let of_seq (s : int array) : t = s
   let fold = Array.fold
 end
@@ -85,12 +80,12 @@ module Text (Sequence : Sequence) = struct
            if idx = 0 then Sequence.null else Sequence.get text (idx - 1))
     |> Sequence.of_list
 
-  (* let bwt_from_SA (seq : text) (sa : int list) =
+  let bwt_from_SA (seq : text) (sa : int list) =
     let text = Sequence.of_seq seq in
     List.length sa :: sa
     |> List.map ~f:(fun idx ->
            if idx = 0 then Sequence.null else Sequence.get text (idx - 1))
-    |> Sequence.of_list *)
+    |> Sequence.of_list
 
   let rle_BWT string =
     Sequence.fold string ~init:[] ~f:(fun acc ele ->
