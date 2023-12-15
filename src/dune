@@ -29,6 +29,12 @@
  (preprocess
   (pps ppx_jane bisect_ppx)))
 
+(library
+ (name WaveletTree)
+ (modules rank_support wavelet_tree)
+(libraries Bitv)
+)
+
 (executable
  (name bwt)
  (modules bwt)
