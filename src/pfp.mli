@@ -5,18 +5,6 @@ module type S = sig
 
   val dict_to_alist : dict -> (string * int) list
   val initialize_streamer : string -> chunk_size:int -> Fasta.FASTAStreamer.t
-
-  val trigger :
-    chunk:string ->
-    phrase_start:int ->
-    phrase_end:int ->
-    window:int ->
-    Fasta.FASTAStreamer.t ->
-    bool ->
-    text * int * int * text * bool
-
-  val sorted_phrases : dict -> text list
-  val hash : ?chunk_size:int -> string -> window:int -> int list * dict
   val parse : string -> int -> parse
   val buildText : string -> text
 
