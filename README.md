@@ -23,6 +23,8 @@ With this, we will create a library for exact string matching over the BWT using
 1. [Biocaml](https://github.com/biocaml/biocaml) to parse FASTA files. We were able to install this library, and we included tests for its FASTA parsing functionalities in `tests/fasta.ml`.
 2. [Wavelet trees](https://github.com/dymil/wavelet-trees) to implement one of the underlying data structures for the indices. We were able to install this library and run its benchmarks.
 
+We copied over the source code from the above Wavelet tree library to be built under our dune structure.
+
 ---
 
 ## Usage
@@ -54,11 +56,11 @@ Found `GAT` at positions 0, 9, 18, 23
 - [x] Implement a naive BWT algorithm.
 - [x] Implement a PFP algorithm with underlying hashing library.
 - [x] Implement an efficient BWT algorithm using PFP.
-- [ ] Implement FM-index.
+- [x] Implement FM-index.
 - [ ] Implement r-index.
-- [ ] Implement serialization functions for both indices.
-- [ ] Implement command-line interface to build indices.
-- [ ] Implement command-line interface to query indices.
+- [x] Implement serialization functions for both indices.
+- [x] Implement command-line interface to build indices.
+- [x] Implement command-line interface to query indices.
 
 Potential extensions:
 

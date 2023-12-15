@@ -2,7 +2,7 @@ open Core
 open OUnit2
 open Serialize
 
-let filename = "./serialize.test"
+let filename = "./data/serialize.test"
 
 let test_int32_write _ =
   Int32Serializer.write filename 42;
@@ -14,7 +14,7 @@ let test_int32_write_list _ =
 
 let test_int32_empty_read _ =
   assert_raises (Failure "empty file") @@ fun _ ->
-  Int32Serializer.read "./empty.test"
+  Int32Serializer.read "./data/empty.test"
 
 let int32serializer_tests =
   "Int32Serializer tests"

@@ -7,7 +7,7 @@ let get_do_mode (input_fname : string option) (parse_dir : string option) =
   match (input_fname, parse_dir) with
   | Some target, None -> Make target
   | Some _, Some parse_dir ->
-      printf "Overwriting parse_dir in %s\n" parse_dir;
+      printf "Overwriting parse_dir in %s\n%!" parse_dir;
       Load parse_dir
   | None, Some parse_dir -> Load parse_dir
   | _ -> None "Exactly one of -i input_file or --parse_dir needs to be set"
@@ -38,17 +38,17 @@ let do_parse_bwt (input_fname : string) (chunk_size : int) (window : int)
 
 let do_bwt (parse_dir : string) (window : int) : unit =
   let parse = Parser.load_parse parse_dir in
-  printf "Loaded parse from %s\n" parse_dir;
+  printf "Loaded parse from %s\n%!" parse_dir;
   let outfname = Out_channel.create (Filename.concat parse_dir "bwt") in
   Parser.parse_to_BWT outfname parse window;
-  printf "BWT computed!\n"
+  printf "BWT computed!\n%!"
 
 let do_run (input_fname : string option) (chunk_size : int)
     (parse_dir : string option) (window : int) (out_dir : string) : unit =
   match get_do_mode input_fname parse_dir with
   | Make target -> do_parse_bwt target chunk_size window out_dir
   | Load parse_dir -> do_bwt parse_dir window
-  | None msg -> printf "Invalid arguments: %s\n" msg
+  | None msg -> printf "Invalid arguments: %s\n%!" msg
 
 let command =
   Command.basic ~summary:"OCaml BigBWT"

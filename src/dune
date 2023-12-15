@@ -1,4 +1,9 @@
 (library
+ (name WaveletTree)
+ (modules select_support rank_support wavelet_tree)
+ (libraries bitv))
+
+(library
  (name serialize)
  (modules serialize)
  (libraries core)
@@ -19,14 +24,30 @@
  (preprocess
   (pps ppx_jane)))
 
+(library
+ (name fm_index)
+ (modules fm_index)
+ (libraries core WaveletTree serialize)
+ (preprocess
+  (pps ppx_jane bisect_ppx)))
 
 (library
  (name BigBWT)
- (modules naive_bwt pfp fm_index sais gsacak)
- (modules_without_implementation fm_index)
- (libraries core RollHash serialize fasta core_unix.sys_unix core_unix.command_unix)
- (foreign_stubs (language c) (names bindings gsacak) (flags -I. -fPIC))
- (c_library_flags (-O3 -std=c99))
+ (modules naive_bwt pfp sais gsacak)
+ (libraries
+  core
+  RollHash
+  WaveletTree
+  serialize
+  fasta
+  core_unix.sys_unix
+  core_unix.command_unix)
+ (foreign_stubs
+  (language c)
+  (names bindings gsacak)
+  (flags -I. -fPIC))
+ (c_library_flags
+  (-O3 -std=c99))
  (preprocess
   (pps ppx_jane bisect_ppx)))
 
@@ -40,12 +61,20 @@
 (executable
  (name sacak_bwt)
  (modules sacak_bwt)
+ (libraries core core_unix.sys_unix core_unix.command_unix stdio BigBWT)
+ (preprocess
+  (pps ppx_jane)))
+
+(executable
+ (name fm_indexer)
+ (modules fm_indexer)
  (libraries
   core
   core_unix.sys_unix
   core_unix.command_unix
   stdio
   BigBWT
-  )
+  serialize
+  fm_index)
  (preprocess
   (pps ppx_jane)))
