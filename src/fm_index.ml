@@ -24,9 +24,19 @@ module FM_index = struct
     let c_map = c_starts |> List.rev |> Hashtbl.of_alist_exn (module Char) in
     {bwt=bwt_wt; c_arr=c_map}
 
-  let exists _ _ = true
+  let exists (fmi : t) (query : string) = 
+    match count fmi query with 
+    | Some _ -> true
+    | None -> false
 
-  let count _ _ = 0
+  let count (fmi : t) (query : string) : int option = 
+    query
+    |> String.to_list_rev
+    |> List.fold_until ~init:((0, String.length query)) ~f:(fun range c ->
+      let newstart, newend = lf_range fmi range c in
+      if newend <= newstart then Stop (None) else Continue (newstart, newend)
+      )
+      ~finish:(fun (s, e) -> Some e - s + 1)
 
   let lf (fmi : t) (i : int) : int = 
     (CharWT.rank fmi.bwt i) + (Hashtbl.find_exn fmi.c_arr i)

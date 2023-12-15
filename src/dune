@@ -31,7 +31,7 @@
 
 (library
  (name WaveletTree)
- (modules rank_support wavelet_tree)
+ (modules select_support rank_support wavelet_tree)
 (libraries Bitv)
 )
 
