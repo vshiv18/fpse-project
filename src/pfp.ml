@@ -118,6 +118,7 @@ end) : S = struct
       let chunk, is_last_chunk = chunk in
       if phrase_end > String.length chunk then parse
       else
+        let trigger = if is_last_chunk then assert false else assert false in
         let trigger, phrase_start, phrase_end, chunk, is_last_chunk =
           trigger ~chunk ~phrase_start ~phrase_end ~window streamer
             is_last_chunk
@@ -146,8 +147,7 @@ end) : S = struct
       | Continue first_chunk -> (first_chunk, false)
       | Stop first_chunk -> (first_chunk, true)
     in
-    ( List.rev (f (0, 0) (first_chunk, is_last_chunk) []),
-      dict_count )
+    (List.rev (f (0, 0) (first_chunk, is_last_chunk) []), dict_count)
 
   let parse (filename : string) (window : int) : parse =
     let hash, dict_count = hash filename ~window in

@@ -29,21 +29,13 @@ let paper_RLBWT =
     ('A', 2);
   ]
 
-let paper_D = [ "$GATTAC"; "ACAT+"; "AGATA$$"; "T+GATAC"; "T+GATTAG" ]
-let paper_parse = [ 0; 1; 3; 1; 4; 2 ]
-let occ = [ 1; 2; 1; 1; 1 ]
+let test_paper_bwt _ =
+  assert_equal (Parser.getBWT "./data/parse.test" 2) paper_BWT
 
-let test_window _ =
-  assert_equal (Parser.parse paper_T 2) (paper_D, occ, paper_parse)
-
-let test_paper_bwt _ = assert_equal (Parser.getBWT paper_T 2) paper_BWT
-
-let pfp_tests =
-  "pfp_tests"
-  >::: [ "paper test" >:: test_window; "paper bwt" >:: test_paper_bwt ]
+let pfp_tests = "pfp_tests" >::: [ "paper bwt" >:: test_paper_bwt ]
 
 let seq =
-  In_channel.with_file "./data/big.txt" ~f:(fun channel ->
+  In_channel.with_file "./data/big.test" ~f:(fun channel ->
       In_channel.input_all channel)
 
 let seq_BWT =
@@ -93,9 +85,9 @@ let test_sais_bwt _ =
 module PfpBWT = PFP (RollHash.Hash.DefaultHasher)
 
 let test_pfp_bwt _ =
-  assert_equal (PfpBWT.getBWT paper_T 10) paper_BWT;
-  assert_equal (PfpBWT.getBWT small 10) small_BWT;
-  assert_equal (PfpBWT.getBWT seq 10) seq_BWT
+  assert_equal (PfpBWT.getBWT "./data/parse.test" 10) paper_BWT;
+  assert_equal (PfpBWT.getBWT "./data/small.test" 10) small_BWT;
+  assert_equal (PfpBWT.getBWT "./data/big.test" 10) seq_BWT
 
 module GsacakBWT = BigBWT.Gsacak.GSACAK
 
