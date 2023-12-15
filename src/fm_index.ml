@@ -1,9 +1,9 @@
 open Core
 
-module CharWT = Wav
+module CharWT = 
 
 module FM_index = struct
-  type t = {bwt : CharWT; c_arr : (char, int) Hashtbl.t}
+  type t = {bwt : CharWT.t; c_arr : (char, int) Hashtbl.t}
   
   let construct (text : string) : t =
     let bwt_wt = text |> String.to_list |> CharWT.build in
@@ -45,9 +45,9 @@ module FM_index = struct
     if not Hashtbl.mem c then (1, 0)
     else
     let top, bottom = range in
-    let c_before = CharWT.rank fmi.bwt c top in
-    let c_inside = CharWT.rank fmi.bwt c (bottom + 1) - c_before in
+    let c_before_top = CharWT.rank fmi.bwt c top in
+    let c_before_bottom = CharWT.rank fmi.bwt c (bottom + 1) in
     let f_col = Hashtbl.find_exn fmi.c_arr c in
-    (c_before + f_col, c_before + c_inside + f_col - 1)
+    (c_before_top + f_col, c_before_bottom + f_col - 1)
 
 end
