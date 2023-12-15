@@ -23,11 +23,12 @@ let build input_fname out_prefix =
   Parser.parse_to_BWT outfname parse window;
   printf "BWT computed!\n%!"; 
   let fmi = FM_index.of_file (out_prefix ^ ".bwt") in
-  FM_index.serialize fmi (out_prefix ^ ".fmi");
+  FM_index.serialize fmi out_prefix;
   printf "FM index computed!\n%!"
 
 let query index pattern = 
-  let fmi = FM_index.deserialize (index ^ ".fmi") in
+  let fmi = FM_index.deserialize index in
+  (* let fmi = FM_index.of_file (index ^ ".bwt") in *)
   match FM_index.count fmi pattern with
   | Some x -> printf "Found pattern with %d occurences!\n%!" x
   | None -> printf "Pattern not found!\n%!"
