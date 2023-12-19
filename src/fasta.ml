@@ -75,12 +75,10 @@ module FASTAStreamer = struct
 
   let parse (streamer : t) : string =
     String.filter
-      (if streamer.chunk_size = -1 then In_channel.input_all streamer.channel
-       else
-         Buffer.contents streamer.buffer
-         |> String.tr ~target:fasta_seq_separator
-              ~replacement:parse_seq_separator
-         |> String.uppercase)
+      ((if streamer.chunk_size = -1 then In_channel.input_all streamer.channel
+        else Buffer.contents streamer.buffer)
+      |> String.tr ~target:fasta_seq_separator ~replacement:parse_seq_separator
+      |> String.uppercase)
       ~f:(parse_char streamer)
 
   let next (streamer : t) : string chunk =

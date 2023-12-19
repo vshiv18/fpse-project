@@ -7,14 +7,24 @@ let filename = "./data/fasta.test"
 let test_small_chunk _ =
   let chunk_size = 10 in
   let streamer = FASTAStreamer.create ~chunk_size filename in
-  assert_equal (Continue "$") @@ FASTAStreamer.next streamer;
-  assert_equal (Continue "") @@ FASTAStreamer.next streamer;
-  assert_equal (Continue "ACTG") @@ FASTAStreamer.next streamer
+  assert_equal { contents = "$"; is_last = false }
+  @@ FASTAStreamer.next streamer;
+  assert_equal { contents = ""; is_last = false } @@ FASTAStreamer.next streamer;
+  assert_equal { contents = "ACTG"; is_last = false }
+  @@ FASTAStreamer.next streamer
 
 let test_large_chunk _ =
   let chunk_size = 200 in
   let streamer = FASTAStreamer.create ~chunk_size filename in
-  assert_equal (Stop "$ACTGACTGACTGACTG$ACTGACTGACTGACTG")
+  assert_equal
+    { contents = "$ACTGACTGACTGACTG$ACTGACTGACTGACTG"; is_last = true }
+  @@ FASTAStreamer.next streamer
+
+let test_all_chunk _ =
+  let chunk_size = -1 in
+  let streamer = FASTAStreamer.create ~chunk_size filename in
+  assert_equal
+    { contents = "$ACTGACTGACTGACTG$ACTGACTGACTGACTG"; is_last = true }
   @@ FASTAStreamer.next streamer
 
 let fastastreamer_tests =
@@ -23,6 +33,7 @@ let fastastreamer_tests =
        [
          "test small chunk size" >:: test_small_chunk;
          "test large chunk size" >:: test_large_chunk;
+         "test all chunk size" >:: test_all_chunk;
        ]
 
 let series = "FASTAStreamer tests" >::: [ fastastreamer_tests ]

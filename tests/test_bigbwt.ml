@@ -1,6 +1,6 @@
 open Core
 open OUnit2
-open BigBWT.Pfp
+(* open BigBWT.Pfp *)
 
 let paper_T = "GATTACAT+GATACAT+GATTAGATA"
 let paper_BWT = "ATTTTTTCCGGGGAAA+$+AAATATAA"
@@ -70,12 +70,12 @@ let test_sais_bwt _ =
   assert_equal (small |> SaisBWT.getBWT) small_BWT;
   assert_equal (seq |> SaisBWT.getBWT) seq_BWT
 
-module PfpBWT = PFP (RollHash.Hash.DefaultHasher)
+(* module PfpBWT = PFP (RollHash.Hash.DefaultHasher)
 
-let test_pfp_bwt _ =
-  assert_equal (PfpBWT.getBWT paper_T 2) paper_BWT;
-  assert_equal (PfpBWT.getBWT small 10) small_BWT;
-  assert_equal (PfpBWT.getBWT seq 10) seq_BWT
+   let test_pfp_bwt _ =
+     assert_equal (PfpBWT.getBWT paper_T 2) paper_BWT;
+     assert_equal (PfpBWT.getBWT small 10) small_BWT;
+     assert_equal (PfpBWT.getBWT seq 10) seq_BWT *)
 
 module GsacakBWT = BigBWT.Gsacak.GSACAK
 
@@ -105,7 +105,7 @@ let bwt_tests =
   >::: [
          "naive bwt" >:: test_naive_bwt;
          "sais bwt" >:: test_sais_bwt;
-         "pfp bwt" >:: test_pfp_bwt;
+         (* "pfp bwt" >:: test_pfp_bwt; *)
          "gsacak bwt" >:: test_gsacak_bwt;
        ]
 

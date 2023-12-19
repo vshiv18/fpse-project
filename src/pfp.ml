@@ -68,22 +68,21 @@ end) : S = struct
       if phrase.end_pos > String.length chunk.contents && chunk.is_last then
         parse
       else
-        let chunk, next_chunk =
-          if chunk.is_last then (chunk, None)
+        let chunk, next_chunk, is_trigger_across_chunks =
+          if chunk.is_last then (chunk, None, false)
           else
             let trigger_end = phrase.end_pos + window in
             if trigger_end > String.length chunk.contents then
               match next_chunk with
-              | None -> (chunk, Some (FASTAStreamer.next streamer))
-              | _ -> (chunk, next_chunk)
-            else (chunk, next_chunk)
+              | None -> (chunk, Some (FASTAStreamer.next streamer), true)
+              | _ -> (chunk, next_chunk, true)
+            else (chunk, next_chunk, false)
         in
-        let trigger, is_trigger_across_chunks =
+        let trigger =
           let trigger_end = phrase.end_pos + window in
           if trigger_end > String.length chunk.contents then
             if chunk.is_last then
-              ( fill (String.slice chunk.contents phrase.end_pos 0) sep window,
-                false )
+              fill (String.slice chunk.contents phrase.end_pos 0) sep window
             else
               let next_chunk = Option.value_exn next_chunk in
               let end_first = String.slice chunk.contents phrase.end_pos 0 in
@@ -91,8 +90,8 @@ end) : S = struct
                 String.slice next_chunk.contents 0
                   (window - String.length end_first)
               in
-              (String.concat [ end_first; start_second ], true)
-          else (String.slice chunk.contents phrase.end_pos trigger_end, false)
+              String.concat [ end_first; start_second ]
+          else String.slice chunk.contents phrase.end_pos trigger_end
         in
         match
           String.( = ) trigger terminator || Hash.is_trigger_string trigger
