@@ -2,7 +2,7 @@
 opam-version: "2.0"
 synopsis: "An OCaml library for the Burrows-Wheeler Transform"
 description:
-  "This package provides an OCaml implementation of the Prefix-Free Parsing algorithm for the construction of the Burrows-Wheeler Transform for large strings. It provides efficient serching of patterns by means of the FM-Index."
+  "This package provides an OCaml implementation of the Prefix-Free Parsing algorithm for the construction of the Burrows-Wheeler Transform for large strings. It provides efficient serching of patterns by means of the FM-Index"
 maintainer: ["vshivak1@jhu.edu" "nbrown99@jhu.edu" "jtenegg1@jhu.edu"]
 authors: ["Vikram Shivakumar" "Nate Brown" "Jacopo Teneggi"]
 depends: [
