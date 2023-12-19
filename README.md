@@ -11,61 +11,94 @@ The Burrows-Wheeler Transform (BWT) [1] is a commonly used pre-processing algori
 
 We aim to implement an efficient algorithm for BWT construction using the recently proposed prefix-free parsing (PFP) [2] method for suffix array construction.
 
-With this, we will create a library for exact string matching over the BWT using two indexing approaches:
-
-1. **FM-index** [3]: performs string matching in time proportional to the length of the query.
-2. **r-index** [4]: performs string matching in space proportional to the number of repeated character runs in the BWT.
+With this, we will create a library for exact string matching over the BWT using the FM-index [3], which performs string matching in time proportional to the length of the query.
 
 ---
 
 ## Libraries
 
-1. [Biocaml](https://github.com/biocaml/biocaml) to parse FASTA files. We were able to install this library, and we included tests for its FASTA parsing functionalities in `tests/fasta.ml`.
-2. [Wavelet trees](https://github.com/dymil/wavelet-trees) to implement one of the underlying data structures for the indices. We were able to install this library and run its benchmarks.
+1. [Wavelet trees](https://github.com/dymil/wavelet-trees) to implement one of the underlying data structures for the indices. We were able to install this library and run its benchmarks.
 
-We copied over the source code from the above Wavelet tree library to be built under our dune structure.
+We copied the source code from the above wavelet tree library to be built under our dune structure.
 
 ---
 
 ## Usage
 
-Our command-line interface will have two commands:
+Our command-line interface provides two commands:
 
-* `build` to write the index to a file:
-
-```console
-~$ ./bigbwt.exe build seq.fasta --out index.output --mode [FM|r]
-Reading sequence from seq.fasta...
-Sequence: GATTACAT!GATACAT!GATTAGATA
-Building [FM|r]-index...
-Saved [FM|r]-index to index.output
-```
-
-* `query` to find the locations of a substring in the text:
+* `bwt` to compute and save the BWT of an input file or load a pre-computed BWT from a directory:
 
 ```console
-~$ ./bigbwt.exe query GAT --index index.output
-Finding `GAT` in index.output...
-Found `GAT` at positions 0, 9, 18, 23
+_build/default/src/bwt.exe --help
+OCaml BigBWT
+
+  bwt.exe 
+
+More detailed information
+
+=== flags ===
+
+  [--from-parse string]      . Path to directory to load parse from.
+  [--out-dir string]         . Path to store parse results.
+  [--window int]             . Window size.
+  [-i string]                . Path to file to compute BWT of.
+  [-build-info]              . print info about this build and exit
+  [-version]                 . print the version of this build and exit
+  [-help], -?                . print this help text and exit```
 ```
 
----
+For example, run:
 
-## Implementation Plan
+```console
+_build/default/src/bwt.exe -i <input_file>.fa --out-dir <output_dir>
+```
 
-- [x] Implement a naive BWT algorithm.
-- [x] Implement a PFP algorithm with underlying hashing library.
-- [x] Implement an efficient BWT algorithm using PFP.
-- [x] Implement FM-index.
-- [ ] Implement r-index.
-- [x] Implement serialization functions for both indices.
-- [x] Implement command-line interface to build indices.
-- [x] Implement command-line interface to query indices.
+to compute the BWT of the sequence stored in `<input_file>.fa` and save the results to `<output_dir>`. Subsequently, run:
 
-Potential extensions:
+```console
+_build/default/src/bwt.exe --from-parse <output_dir>
+```
 
-- [ ] Parallelization
-- [ ] Index/text query framework for genome alignment
+to load the parse.
+
+* `fm_indexer` to count the number of occurrences of a pattern in a string:
+
+```console
+_build/default/src/fm_indexer.exe --help 
+OCaml FM index
+
+  fm_indexer.exe MODE
+
+More detailed information
+
+=== flags ===
+
+  [--out-prefix string]      . Path to store parse results.
+  [-i string]                . path to file to index.
+  [-p string]                . path to file for pattern.
+  [-build-info]              . print info about this build and exit
+  [-version]                 . print the version of this build and exit
+  [-help], -?                . print this help text and exit
+```
+
+which has two modes of execution:
+
+1. `build` which builds the FM-Index of an input file and saves it. For example:
+
+```console
+_build/default/src/fm_indexer.exe build -i <input_file>.fa --out-prefix <output_prefix>
+```
+
+builds the FM-index of the sequence stored in `<input_file>.fa` and saves the results to `<output_prefix>`. Note that this function relies on the BWT computation function above.
+
+2. `run` which loads a pre-computed FM-Index and counts the number of occurrences of pattern `-p`. For example:
+
+```console
+_build/default/src/fm_indexer.exe run -i <index> -p ACTG
+```
+
+counts the number of occurrences of `ACTG` in the index stored in `<index>`.
 
 ---
 

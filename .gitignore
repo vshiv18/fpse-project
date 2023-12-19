@@ -36,3 +36,4 @@ _coverage
 benchmark/raw_fastas
 benchmark/cum_fastas
 benchmark/out
+.DS_Store
