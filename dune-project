@@ -9,7 +9,7 @@
 (package
  (allow_empty)
  (name ocaml_bigbwt)
- (synopsis "An OCaml library for the Burrows-Wheeler Transform.")
+ (synopsis "An OCaml library for the Burrows-Wheeler Transform")
  (description
   "This package provides an OCaml implementation of the Prefix-Free Parsing algorithm for the construction of the Burrows-Wheeler Transform for large strings. It provides efficient serching of patterns by means of the FM-Index.")
  (depends
@@ -18,4 +18,4 @@
   (core
    (>= 0.16.2))
   (bitv
-   (>= 1.6.0))))
+   (>= 1.6))))
