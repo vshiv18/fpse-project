@@ -43,9 +43,10 @@ let command =
     ~readme:(fun () -> "More detailed information")
     (let%map_open.Command mode = anon ("mode" %: string)
      and input_fname =
-       flag "-i" (optional string) ~doc:"string path to file to index."
+       flag "-i" (optional string)
+         ~doc:"string Path to file to build index for."
      and pattern =
-       flag "-p" (optional string) ~doc:"string path to file for pattern."
+       flag "-p" (optional string) ~doc:"string Pattern to search for."
      and out_prefix =
        flag "--out-prefix"
          (optional_with_default "./index" string)

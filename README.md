@@ -75,8 +75,8 @@ More detailed information
 === flags ===
 
   [--out-prefix string]      . Path to store parse results.
-  [-i string]                . path to file to index.
-  [-p string]                . path to file for pattern.
+  [-i string]                . Path to file to build index for.
+  [-p string]                . Pattern to search for.
   [-build-info]              . print info about this build and exit
   [-version]                 . print the version of this build and exit
   [-help], -?                . print this help text and exit
