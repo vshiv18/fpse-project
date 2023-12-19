@@ -74,7 +74,7 @@ More detailed information
 
 === flags ===
 
-  [--out-prefix string]       . Path to store index.
+  [--out-prefix string]      . Path to store index.
   [-i string]                . Path to file to build index for.
   [-p string]                . Pattern to search for.
   [-build-info]              . print info about this build and exit
