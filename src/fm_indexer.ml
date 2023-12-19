@@ -50,7 +50,7 @@ let command =
      and out_prefix =
        flag "--out-prefix"
          (optional_with_default "./index" string)
-         ~doc:"string Path to store parse results."
+         ~doc:"string Path to store index."
      in
      let mode =
        match mode with
